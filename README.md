@@ -23,6 +23,20 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 - Real-time system logging and diagnostics
 - Support for multiple hardware variants and vendors
 
+## Screenshots
+
+<div align="center">
+
+### Main Interface
+![PicoForge Main Interface](assets/screenshot-1.webp)
+
+### Configuration Panel
+![Configuration Options](assets/screenshot-2.webp)
+
+![Device Management](assets/screenshot-3.webp)
+
+</div>
+
 ## Features
 
 - **Device Configuration** - Customize USB identifiers, LED behavior, and hardware settings
