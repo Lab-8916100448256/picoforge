@@ -6,6 +6,10 @@
 
 **An open source commissioning tool for Pico FIDO security keys**
 
+> [!NOTE] 
+>
+> PicoForge is an independent, community-developed tool and is not affiliated with or endorsed by the official Pico FIDO project. This software does not share any code with the official closed-source Pico FIDO commissioning application.
+
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![GitHub issues](https://img.shields.io/github/issues/librekeys/picoforge)](https://github.com/librekeys/picoforge/issues)
 [![GitHub stars](https://img.shields.io/github/stars/librekeys/picoforge)](https://github.com/librekeys/picoforge/stargazers)
@@ -19,11 +23,13 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 - Reading device information and firmware details
 - Configuring USB VID/PID and product names
 - Adjusting LED settings (GPIO, brightness, driver)
-- Managing security features (secure boot, firmware locking)
+- Managing security features (secure boot, firmware locking) (WIP)
 - Real-time system logging and diagnostics
 - Support for multiple hardware variants and vendors
 
-> **Alpha Status**: This application is currently under active development and in alpha stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux with the official Raspberry Pi Pico2 and currently supports Pico FIDO firmware version 7.2 only. Release binaries will be built and published soon.
+> **Alpha Status**: This application is currently under active development and in alpha stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10 with the official Raspberry Pi Pico2 and currently supports Pico FIDO firmware version 7.2 only.
+>
+> The AppImage in the release builds have a lot of issues right now, I will fix them in the next or upcomming releases, till then you can either complie the app from source or use the .deb/.rpm versions from the releases.
 
 ## Screenshots
 
@@ -42,7 +48,7 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 ## Features
 
 - **Device Configuration** - Customize USB identifiers, LED behavior, and hardware settings
-- **Security Management** - Enable secure boot and firmware verification (experimental)
+- **Security Management** - Enable secure boot and firmware verification (experimental and WIP)
 - **Real-time Monitoring** - View flash usage, connection status, and system logs
 - **Modern UI** - Clean, responsive interface built with Svelte and shadcn-svelte
 - **Multi-Vendor Support** - Preset configurations for YubiKey, Nitrokey, SoloKeys, and more
@@ -50,17 +56,13 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 
 ## Requirements
 
-### Runtime Requirements
-
-- Smart Card Reader (PC/SC compatible)
-- Pico FIDO device in Rescue mode
-
 ### Development Requirements
 
 To contribute to PicoForge, you'll need:
 
+- **[Node.js](https://nodejs.org/)** - JavaScript/TypeScript runtime
 - **[Deno](https://deno.land/)** - JavaScript/TypeScript runtime
-- **[Rust](https://www.rust-lang.org/)** - System programming language (1.70+)
+- **[Rust](https://www.rust-lang.org/)** - System programming language (1.80+)
 - **PC/SC Middleware**:
   - Linux: `pcscd` (usually pre-installed)
   - macOS: Built-in
@@ -132,9 +134,9 @@ Get-Service SCardSvr | Start-Service
 ## Usage
 
 1. Connect your smart card reader
-2. Insert your Pico FIDO device (in Rescue mode)
+2. Insert your Pico FIDO device
 3. Launch PicoForge
-4. Click **Connect Device** to detect your key
+4. Click **Refresh** button at top right corner to detect your key
 5. Navigate through the sidebar to configure settings:
    - **Home** - Device overview and quick actions
    - **Configuration** - USB settings, LED options
@@ -158,7 +160,7 @@ Get-Service SCardSvr | Start-Service
 #### Advanced
 - **Touch Timeout** - User presence button timeout (seconds)
 - **Secp256k1** - Enable secp256k1 curve support
-- **Secure Boot** - Firmware signature verification (⚠️ experimental)
+- **Secure Boot** - Firmware signature verification (⚠️ experimental and WIP)
 
 ## Project Structure
 
@@ -203,6 +205,7 @@ Contributions are welcome! Please follow these steps:
 ### Development Guidelines
 
 - Follow Rust and TypeScript best practices
+- Use `deno fmt` to format the frontend code
 - Write clear commit messages
 - Update documentation for new features
 - Test on multiple platforms when possible
@@ -234,6 +237,8 @@ See [LICENSE](LICENSE) for full details.
 ## Disclaimer
 
 PicoForge is experimental software. The secure boot feature can permanently lock devices if misconfigured. Always understand the implications before enabling security features.
+
+**USB VID/PID Notice**: The vendor presets provided in this software include USB Vendor IDs (VID) and Product IDs (PID) that are the intellectual property of their respective owners (Yubico, Nitrokey, FSIJ, Raspberry Pi Foundation, and others). These identifiers are included for personal development, testing, and educational purposes only. You are NOT authorized to distribute or commercially market devices using VID/PID combinations you do not own or license. Commercial distribution requires obtaining your own VID from the USB Implementers Forum ([usb.org](https://www.usb.org/getting-vendor-id)) and complying with all applicable trademark and certification requirements. Unauthorized use may violate USB-IF policies and intellectual property laws. The PicoForge developers assume no liability for misuse of USB identifiers.
 
 ---
 
