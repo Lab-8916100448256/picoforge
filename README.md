@@ -43,8 +43,11 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 ![PicoForge Main Interface](assets/screenshot-1.webp)
 
 ### Configuration Panel
+
+#### Pin config
 ![Configuration Options](assets/screenshot-2.webp)
 
+#### Other Config
 ![Device Management](assets/screenshot-3.webp)
 
 </div>

@@ -4,7 +4,6 @@
   import { open } from "@tauri-apps/plugin-shell";
 
   import {
-    Copyright,
     Cpu,
     Github,
     Home,
@@ -324,7 +323,7 @@
     </aside>
 
     <main class="flex-1 bg-background overflow-hidden">
-      <ScrollArea class="h-full">
+      <ScrollArea class="h-full mr-1">
         <div class="container mx-auto py-8 px-8 max-w-6xl">
           <div class="space-y-8">
             {#if currentView === "home"}
@@ -465,23 +464,34 @@
                     <Card.Root>
                       <Card.Header>
                         <Card.Title class="flex items-center gap-2">
-                          <Tag class="h-5 w-5" />
-                          Vendor Information
+                          <ShieldCheck class="h-5 w-5" />
+                          Security Status
                         </Card.Title>
                       </Card.Header>
                       <Card.Content class="space-y-3 text-sm">
-                        <div class="flex justify-between">
-                          <span class="text-muted-foreground">Vendor ID</span>
-                          <span class="font-mono font-medium">{device.config.vid}</span>
+                        <div class="flex justify-between items-center">
+                          <span class="text-muted-foreground">Boot Mode</span>
+                          <div class="flex items-center gap-2">
+                            {#if device.security.secureBoot}
+                              <Lock class="h-3 w-3 text-green-500" />
+                            {:else}
+                              <LockOpen class="h-3 w-3 text-amber-500" />
+                            {/if}
+                            <Badge variant={device.security.secureBoot ? "default" : "secondary"}>
+                              {device.security.secureBoot ? "Secure Boot" : "Development"}
+                            </Badge>
+                          </div>
                         </div>
-                        <div class="flex justify-between">
-                          <span class="text-muted-foreground">Product ID</span>
-                          <span class="font-mono font-medium">{device.config.pid}</span>
+                        <div class="flex justify-between items-center">
+                          <span class="text-muted-foreground">Debug Interface</span>
+                          <span class="font-medium">
+                            {device.security.secureLock ? "Read-out Locked" : "Debug Enabled"}
+                          </span>
                         </div>
-                        <div class="flex justify-between">
-                          <span class="text-muted-foreground">Selected Vendor</span>
-                          <Badge variant="secondary">
-                            {VENDORS.find((v) => v.value === device.selectedVendor)?.label || "Custom"}
+                        <div class="flex justify-between items-center">
+                          <span class="text-muted-foreground">Secure Lock</span>
+                          <Badge variant={device.security.confirmed ? "destructive" : "outline"}>
+                            {device.security.confirmed ? "Acknowledged" : "Pending"}
                           </Badge>
                         </div>
                       </Card.Content>
@@ -843,7 +853,7 @@
                       </div>
 
                       <h2 class="text-2xl font-bold">PicoForge</h2>
-                      <Badge variant="secondary" class="px-4 py-1">v0.1.1-Alpha</Badge>
+                      <Badge variant="secondary" class="px-4 py-1">v0.1.3-Alpha</Badge>
                       <p class="text-muted-foreground max-w-md">
                         An open source commissioning tool for Pico FIDO security keys. Developed with Rust, Tauri, and Svelte.
                       </p>
@@ -852,15 +862,9 @@
                         <div class="flex justify-between">
                           <span>Code By:</span> <span class="font-medium text-foreground">Suyog Tandel</span>
                         </div>
-                        <div class="flex justify-between">
-                          <span>Artwork:</span> <span class="font-medium text-foreground">Suyog Tandel</span>
-                        </div>
-                        <div class="flex justify-between items-center pt-2 mt-2 border-t border-dashed">
-                          <span class="flex items-center gap-1"
-                            ><Copyright class="h-3 w-3" />
-                            Copyright:</span
-                          >
-                          <span class="font-medium text-foreground">2026 Suyog Tandel</span>
+                        <div class="flex justify-between items-center pt-2 mt-2">
+                          <span class="flex items-center gap-1">Copyright:</span>
+                          <span class="font-medium text-foreground">© 2026 Suyog Tandel</span>
                         </div>
                       </div>
 
@@ -869,10 +873,10 @@
                           <Github class="h-4 w-4" />
                           GitHub
                         </Button>
-                        <Button variant="outline" size="sm" class="gap-2" onclick={openWebsite}>
+                        <!-- <Button variant="outline" size="sm" class="gap-2" onclick={openWebsite}>
                           <Home class="h-4 w-4" />
                           Website
-                        </Button>
+                        </Button> -->
                       </div>
                     </div>
                   </Card.Content>
