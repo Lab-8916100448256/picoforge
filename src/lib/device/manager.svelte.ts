@@ -1,7 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logger } from "$lib/utils/log.svelte";
 import { DEFAULT_CONFIG, DEFAULT_DEVICE_INFO, VENDORS } from "$lib/device/constants.svelte";
-import type { DeviceConfig, DeviceInfo, FidoInfo, SecurityState } from "$lib/device/types.svelte";
+import type {
+  DeviceConfig,
+  DeviceInfo,
+  FidoInfo,
+  SecurityState,
+  FullDeviceStatus,
+  DeviceConfigInput,
+} from "$lib/device/types.svelte";
 
 class DeviceManager {
   loading = $state(false);
@@ -30,49 +37,26 @@ class DeviceManager {
     try {
       logger.add("Attempting to connect to device...", "info");
 
-      const status: any = await invoke("read_device_details");
+      const status = await invoke<FullDeviceStatus>("read_device_details");
 
-      this.info = {
-        serial: status.info.serial,
-        flashUsed: status.info.flash_used,
-        flashTotal: status.info.flash_total,
-        firmwareVersion: status.info.firmware_version,
-      };
+      this.info = status.info;
 
       this.config = {
-        vid: status.config.vid,
-        pid: status.config.pid,
-        productName: status.config.product_name,
-        ledGpio: status.config.led_gpio,
-        ledBrightness: status.config.led_brightness,
-        touchTimeout: status.config.touch_timeout,
-        ledDimmable: status.config.led_dimmable,
-        powerCycleOnReset: status.config.power_cycle_on_reset,
-        ledSteady: status.config.led_steady,
-        enableSecp256k1: status.config.enable_secp256k1,
-        ledDriver: status.config.led_driver ? String(status.config.led_driver) : "1",
+        ...status.config,
+        ledDriver: status.config.ledDriver ? String(status.config.ledDriver) : "1",
       };
 
       this.#originalConfig = JSON.parse(JSON.stringify(this.config));
 
       this.security = {
-        secureBoot: status.secure_boot,
-        secureLock: status.secure_lock,
+        secureBoot: status.secureBoot,
+        secureLock: status.secureLock,
         confirmed: false,
       };
 
-      const fido: any = await invoke("get_fido_info");
-      this.fidoInfo = {
-        versions: fido.versions,
-        extensions: fido.extensions,
-        aaguid: fido.aaguid,
-        options: fido.options,
-        maxMsgSize: fido.max_msg_size,
-        pinProtocols: fido.pin_protocols,
-        // remainingDiscCreds: fido.remaining_disc_creds,
-        minPinLength: fido.min_pin_length,
-        firmwareVersion: fido.firmware_version,
-      };
+      const fido = await invoke<FidoInfo>("get_fido_info");
+
+      this.fidoInfo = fido;
 
       if (!this.connected) {
         logger.add(`Device Connected! Serial: ${this.info.serial}, FW: v${this.info.firmwareVersion}`, "success");
@@ -96,7 +80,7 @@ class DeviceManager {
     logger.add("Analyzing configuration changes...", "info");
 
     try {
-      const rustConfig: any = {};
+      const rustConfig: DeviceConfigInput = {};
 
       // Diffing logic
       if (this.config.vid !== this.#originalConfig.vid || this.config.pid !== this.#originalConfig.pid) {
@@ -106,22 +90,22 @@ class DeviceManager {
       }
 
       if (this.config.productName !== this.#originalConfig.productName) {
-        rustConfig.product_name = this.config.productName;
+        rustConfig.productName = this.config.productName;
         logger.add(`Queuing change: Product Name -> ${this.config.productName}`, "info");
       }
 
       if (Number(this.config.ledGpio) !== Number(this.#originalConfig.ledGpio)) {
-        rustConfig.led_gpio = Number(this.config.ledGpio);
+        rustConfig.ledGpio = Number(this.config.ledGpio);
         logger.add(`Queuing change: LED GPIO -> ${this.config.ledGpio}`, "info");
       }
 
       if (Number(this.config.ledBrightness) !== Number(this.#originalConfig.ledBrightness)) {
-        rustConfig.led_brightness = Number(this.config.ledBrightness);
+        rustConfig.ledBrightness = Number(this.config.ledBrightness);
         logger.add(`Queuing change: Brightness -> ${this.config.ledBrightness}`, "info");
       }
 
       if (Number(this.config.touchTimeout) !== Number(this.#originalConfig.touchTimeout)) {
-        rustConfig.touch_timeout = Number(this.config.touchTimeout);
+        rustConfig.touchTimeout = Number(this.config.touchTimeout);
         logger.add(`Queuing change: Timeout -> ${this.config.touchTimeout}`, "info");
       }
 
@@ -131,19 +115,19 @@ class DeviceManager {
         this.config.ledSteady !== this.#originalConfig.ledSteady;
 
       if (optionsChanged) {
-        rustConfig.led_dimmable = this.config.ledDimmable;
-        rustConfig.power_cycle_on_reset = this.config.powerCycleOnReset;
-        rustConfig.led_steady = this.config.ledSteady;
+        rustConfig.ledDimmable = this.config.ledDimmable;
+        rustConfig.powerCycleOnReset = this.config.powerCycleOnReset;
+        rustConfig.ledSteady = this.config.ledSteady;
         logger.add("Queuing change: Device Options (Bitmask updated)", "info");
       }
 
       if (this.config.enableSecp256k1 !== this.#originalConfig.enableSecp256k1) {
-        rustConfig.enable_secp256k1 = this.config.enableSecp256k1;
+        rustConfig.enableSecp256k1 = this.config.enableSecp256k1;
         logger.add(`Queuing change: Secp256k1 -> ${this.config.enableSecp256k1}`, "info");
       }
 
       if (Number(this.config.ledDriver) !== Number(this.#originalConfig.ledDriver)) {
-        rustConfig.led_driver = Number(this.config.ledDriver);
+        rustConfig.ledDriver = Number(this.config.ledDriver);
         logger.add(`Queuing change: LED Driver -> ${this.config.ledDriver}`, "info");
       }
 

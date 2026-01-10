@@ -12,11 +12,32 @@ export interface DeviceConfig {
   ledDriver: string;
 }
 
+export interface DeviceConfigInput {
+  vid?: string;
+  pid?: string;
+  productName?: string;
+  ledGpio?: number;
+  ledBrightness?: number;
+  touchTimeout?: number;
+  ledDriver?: number;
+  ledDimmable?: boolean;
+  powerCycleOnReset?: boolean;
+  ledSteady?: boolean;
+  enableSecp256k1?: boolean;
+}
+
 export interface DeviceInfo {
   serial: string;
   flashUsed: number;
   flashTotal: number;
   firmwareVersion: string;
+}
+
+export interface FullDeviceStatus {
+  info: DeviceInfo;
+  config: DeviceConfig;
+  secureBoot: boolean;
+  secureLock: boolean;
 }
 
 export interface SecurityState {

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 // --- Data Structures ---
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
 	pub serial: String,
 	pub flash_used: u32,
@@ -11,6 +12,7 @@ pub struct DeviceInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct AppConfig {
 	pub vid: String,
 	pub pid: String,
@@ -28,6 +30,7 @@ pub struct AppConfig {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct AppConfigInput {
 	pub vid: Option<String>,
 	pub pid: Option<String>,
@@ -43,6 +46,7 @@ pub struct AppConfigInput {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FullDeviceStatus {
 	pub info: DeviceInfo,
 	pub config: AppConfig,
@@ -53,6 +57,7 @@ pub struct FullDeviceStatus {
 // Fido stuff:
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FidoDeviceInfo {
 	pub versions: Vec<String>,
 	pub extensions: Vec<String>,

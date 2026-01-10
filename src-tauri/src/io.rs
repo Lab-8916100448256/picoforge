@@ -4,6 +4,7 @@ use crate::{fido, rescue, types::*};
 #[tauri::command]
 pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
 	rescue::read_device_details()
+	// fido::read_device_details()
 }
 
 #[tauri::command]
@@ -29,6 +30,7 @@ pub(crate) fn change_fido_pin(
 	fido::change_fido_pin(current_pin, new_pin)
 }
 
+/// UNSTABLE!
 #[tauri::command]
 pub(crate) fn set_min_pin_length(
 	current_pin: String,
