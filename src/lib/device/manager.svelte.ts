@@ -144,7 +144,7 @@ class DeviceManager {
       }
     } catch (err: any) {
       logger.add(`Write Failed: ${err}`, "error");
-      return { success: false, msg: "Error: " + err };
+      return { success: false, msg: `Error: ${err}` };
     } finally {
       this.loading = false;
     }
@@ -152,7 +152,7 @@ class DeviceManager {
 
   setVendor(value: string) {
     const v = VENDORS.find((x) => x.value === value);
-    if (v && value !== "custom") {
+    if (v) {
       this.config.vid = v.vid;
       this.config.pid = v.pid;
       logger.add(`Selected vendor preset: ${v.label}`, "info");
