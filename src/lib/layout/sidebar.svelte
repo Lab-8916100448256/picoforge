@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { listen } from "@tauri-apps/api/event";
 
   import { Home, Info, Maximize, Minimize, Minus, RefreshCw, ScrollText, Settings, ShieldCheck, X } from "@lucide/svelte";
   import type { Component } from "svelte";
@@ -22,11 +23,10 @@
   let { currentView, onViewChange, children }: Props = $props();
 
   let isMaximized = $state(false);
-  let unlistenResize: () => void;
+  let unlistenWindowState: (() => void) | undefined;
 
   const appWindow = getCurrentWindow();
 
-  // Menu items configuration
   const menuItems: Array<{ view: View; icon: Component; label: string }> = [
     { view: "home", icon: Home, label: "Home" },
     { view: "config", icon: Settings, label: "Configuration" },
@@ -50,15 +50,18 @@
   onMount(() => {
     const setupWindow = async () => {
       isMaximized = await appWindow.isMaximized();
-      unlistenResize = await appWindow.onResized(async () => {
-        isMaximized = await appWindow.isMaximized();
+
+      unlistenWindowState = await listen<{ isMaximized: boolean }>("window-state-changed", (event) => {
+        isMaximized = event.payload.isMaximized;
       });
     };
 
     setupWindow();
 
     return () => {
-      if (unlistenResize) unlistenResize();
+      if (unlistenWindowState) {
+        unlistenWindowState();
+      }
     };
   });
 </script>

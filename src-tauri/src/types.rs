@@ -1,6 +1,10 @@
+#![allow(unused)]
+
 use serde::{Deserialize, Serialize};
 
-// --- Data Structures ---
+struct PForgeState {
+	device_info: DeviceInfo,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,7 +26,6 @@ pub struct AppConfig {
 	pub touch_timeout: u8,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub led_driver: Option<u8>,
-	// New Options
 	pub led_dimmable: bool,
 	pub power_cycle_on_reset: bool,
 	pub led_steady: bool,
@@ -68,26 +71,4 @@ pub struct FidoDeviceInfo {
 	// pub remaining_disc_creds: u32,
 	pub min_pin_length: u32,
 	pub firmware_version: String,
-}
-
-// Error stuff:
-
-#[derive(Debug, thiserror::Error)]
-pub enum AppError {
-	#[error("PCSC Error: {0}")]
-	Pcsc(#[from] pcsc::Error),
-	#[error("IO/Hex Error: {0}")]
-	Io(String),
-	#[error("Device Error: {0}")]
-	Device(String),
-}
-
-// Allow error to be serialized to string for Tauri
-impl serde::Serialize for AppError {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where
-		S: serde::Serializer,
-	{
-		serializer.serialize_str(&self.to_string())
-	}
 }

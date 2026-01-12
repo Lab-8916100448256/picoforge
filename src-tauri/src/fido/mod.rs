@@ -3,7 +3,10 @@
 pub mod constants;
 pub mod hid;
 
-use crate::types::{AppConfig, AppError, DeviceInfo, FidoDeviceInfo, FullDeviceStatus};
+use crate::{
+	error::PFError,
+	types::{AppConfig, DeviceInfo, FidoDeviceInfo, FullDeviceStatus},
+};
 use constants::*;
 use ctap_hid_fido2::{Cfg, FidoKeyHidFactory};
 use hid::*;
@@ -80,12 +83,12 @@ pub(crate) fn set_min_pin_length(
 
 // Custom Fido functions ( works only with pico-fido firmware )
 
-pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
+pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	log::info!("Starting FIDO device details read...");
 
 	let transport = HidTransport::open().map_err(|e| {
 		log::error!("Failed to open HID transport: {}", e);
-		AppError::Device(e.to_string())
+		PFError::Device(e.to_string())
 	})?;
 
 	// --- 1. Get Info ---
@@ -95,14 +98,14 @@ pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
 		.send_cbor(CTAPHID_CBOR, &info_payload)
 		.map_err(|e| {
 			log::error!("GetInfo CTAP command failed: {}", e);
-			AppError::Device(format!("GetInfo failed: {}", e))
+			PFError::Device(format!("GetInfo failed: {}", e))
 		})?;
 
 	log::debug!("GetInfo response received ({} bytes)", info_res.len());
 
 	let info_val: Value = from_slice(&info_res).map_err(|e| {
 		log::error!("Failed to parse GetInfo CBOR: {}", e);
-		AppError::Io(e.to_string())
+		PFError::Io(e.to_string())
 	})?;
 
 	// NOTE: Key 0x03 is AAGUID, not the unique device Serial.
@@ -158,7 +161,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
 
 	let mem_cbor = to_vec(&Value::Map(mem_req)).map_err(|e| {
 		log::error!("Failed to encode Memory Stats CBOR: {}", e);
-		AppError::Io(format!("CBOR encode error: {}", e))
+		PFError::Io(format!("CBOR encode error: {}", e))
 	})?;
 
 	// FIX: Prepend the Vendor Command ID (0x06 for Memory) to the payload
@@ -216,7 +219,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
 
 	let phy_cbor = to_vec(&Value::Map(phy_params)).map_err(|e| {
 		log::error!("Failed to encode Physical Config CBOR: {}", e);
-		AppError::Io(format!("CBOR encode error: {}", e))
+		PFError::Io(format!("CBOR encode error: {}", e))
 	})?;
 
 	// FIX: Prepend Vendor Command ID (0x05 for PhysicalOptions)

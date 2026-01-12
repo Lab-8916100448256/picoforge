@@ -1,13 +1,17 @@
+//! Implements communication with the pico-fido firmware via the `Rescue API`.
+//!
+//! For more details checkout the [pico-key-sdk](https://github.com/polhenarejos/pico-keys-sdk/blob/main/src/rescue.c)
+
 pub mod constants;
 
-use crate::{rescue::constants::*, types::*};
+use crate::{error::PFError, rescue::constants::*, types::*};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use log;
 use pcsc::{Context, Protocols, Scope, ShareMode};
 use std::io::Cursor;
 
 /// Connects to the first available reader and selects the Rescue Applet
-fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), AppError> {
+fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), PFError> {
 	let ctx = Context::establish(Scope::User)?;
 
 	let mut readers_buf = [0; 2048];
@@ -16,7 +20,7 @@ fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), AppError> {
 	// Use the first reader found
 	let reader = readers.next().ok_or_else(|| {
 		log::error!("No Smart Card Reader found");
-		AppError::Device("No Smart Card Reader found.".into())
+		PFError::Device("No Smart Card Reader found.".into())
 	})?;
 
 	let card = ctx.connect(reader, ShareMode::Shared, Protocols::ANY)?;
@@ -37,7 +41,7 @@ fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), AppError> {
 	// Check Success (0x90 0x00)
 	if !rx.ends_with(&[0x90, 0x00]) {
 		log::error!("Rescue Applet not found on the device!");
-		return Err(AppError::Device(
+		return Err(PFError::Device(
 			// There is no such mode as fido, i tink the rescue applet stays active and at the same time fido mode works?
 			// Need to study this more.
 			"Rescue Applet not found on device. Is it in FIDO mode?".into(),
@@ -48,12 +52,12 @@ fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), AppError> {
 	Ok((card, rx.to_vec()))
 }
 
-pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
+pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	log::info!("Reading full device details");
 	let (card, select_resp) = connect_and_select()?;
 
 	if select_resp.len() < 14 {
-		return Err(AppError::Device("Invalid select response".into()));
+		return Err(PFError::Device("Invalid select response".into()));
 	}
 	let version_major = select_resp[2];
 	let version_minor = select_resp[3];
@@ -73,7 +77,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
 	)?;
 
 	if !rx_flash.ends_with(&SW_SUCCESS) {
-		return Err(AppError::Device("Failed to read flash".into()));
+		return Err(PFError::Device("Failed to read flash".into()));
 	}
 
 	let mut rdr = Cursor::new(&rx_flash[..rx_flash.len() - 2]);
@@ -116,7 +120,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
 	)?;
 
 	if !rx_phy.ends_with(&[0x90, 0x00]) {
-		return Err(AppError::Device("Failed to read config".into()));
+		return Err(PFError::Device("Failed to read config".into()));
 	}
 
 	// Parse TLV
@@ -215,7 +219,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, AppError> {
 	})
 }
 
-pub fn write_config(config: AppConfigInput) -> Result<String, AppError> {
+pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
 	log::info!("Writing configuration to device");
 	log::debug!("Config input: {:?}", config);
 
@@ -225,9 +229,9 @@ pub fn write_config(config: AppConfigInput) -> Result<String, AppError> {
 	// VID:PID (Tag 0x00)
 	if let (Some(vid_str), Some(pid_str)) = (&config.vid, &config.pid) {
 		let vid =
-			u16::from_str_radix(vid_str, 16).map_err(|_| AppError::Io("Invalid VID".into()))?;
+			u16::from_str_radix(vid_str, 16).map_err(|_| PFError::Io("Invalid VID".into()))?;
 		let pid =
-			u16::from_str_radix(pid_str, 16).map_err(|_| AppError::Io("Invalid PID".into()))?;
+			u16::from_str_radix(pid_str, 16).map_err(|_| PFError::Io("Invalid PID".into()))?;
 
 		tlv.push(PhyTag::VidPid as u8);
 		tlv.push(0x04);
@@ -303,7 +307,7 @@ pub fn write_config(config: AppConfigInput) -> Result<String, AppError> {
 			let name_bytes = name.as_bytes();
 			let len = name_bytes.len() + 1;
 			if len > 32 {
-				return Err(AppError::Io("Product name too long".into()));
+				return Err(PFError::Io("Product name too long".into()));
 			}
 
 			tlv.push(PhyTag::UsbProduct as u8);
@@ -341,11 +345,11 @@ pub fn write_config(config: AppConfigInput) -> Result<String, AppError> {
 		Ok("Configuration Applied Successfully".into())
 	} else {
 		log::error!("Configuration write failed: {:02X?}", rx);
-		Err(AppError::Device(format!("Write failed: {:02X?}", rx)))
+		Err(PFError::Device(format!("Write failed: {:02X?}", rx)))
 	}
 }
 
-pub fn reboot_device(to_bootsel: bool) -> Result<String, AppError> {
+pub fn reboot_device(to_bootsel: bool) -> Result<String, PFError> {
 	let (card, _) = connect_and_select()?;
 
 	let param = if to_bootsel {
@@ -368,12 +372,12 @@ pub fn reboot_device(to_bootsel: bool) -> Result<String, AppError> {
 	if rx.ends_with(&SW_SUCCESS) {
 		Ok("Reboot command sent".into())
 	} else {
-		Err(AppError::Device(format!("Reboot failed: {:02X?}", rx)))
+		Err(PFError::Device(format!("Reboot failed: {:02X?}", rx)))
 	}
 }
 
 /// UNSTABLE! (WIP)
-pub fn enable_secure_boot(lock: bool) -> Result<String, AppError> {
+pub fn enable_secure_boot(lock: bool) -> Result<String, PFError> {
 	let (card, _) = connect_and_select()?;
 
 	// APDU: 80 1D [KeyIndex] [LockBool] 00
@@ -394,6 +398,6 @@ pub fn enable_secure_boot(lock: bool) -> Result<String, AppError> {
 	if rx.ends_with(&[0x90, 0x00]) {
 		Ok("Secure Boot Enabled".into())
 	} else {
-		Err(AppError::Device(format!("Secure Boot failed: {:02X?}", rx)))
+		Err(PFError::Device(format!("Secure Boot failed: {:02X?}", rx)))
 	}
 }
