@@ -12,10 +12,18 @@ use std::io::Cursor;
 
 /// Connects to the first available reader and selects the Rescue Applet
 fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), PFError> {
-	let ctx = Context::establish(Scope::User)?;
+	log::debug!("Establishing PCSC context...");
+	let ctx = Context::establish(Scope::User).map_err(|e| {
+		log::error!("Failed to establish PCSC context: {}", e);
+		e
+	})?;
 
 	let mut readers_buf = [0; 2048];
-	let mut readers = ctx.list_readers(&mut readers_buf)?;
+	log::debug!("Listing readers...");
+	let mut readers = ctx.list_readers(&mut readers_buf).map_err(|e| {
+		log::error!("Failed to list readers: {}", e);
+		e
+	})?;
 
 	// Use the first reader found
 	let reader = readers.next().ok_or_else(|| {
@@ -23,7 +31,13 @@ fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), PFError> {
 		PFError::Device("No Smart Card Reader found.".into())
 	})?;
 
-	let card = ctx.connect(reader, ShareMode::Shared, Protocols::ANY)?;
+	log::debug!("Connecting to reader: {:?}", reader);
+	let card = ctx
+		.connect(reader, ShareMode::Shared, Protocols::ANY)
+		.map_err(|e| {
+			log::error!("Failed to connect to card: {}", e);
+			e
+		})?;
 
 	// Select Applet APDU: 00 A4 04 04 [Len] [AID]
 	let mut apdu = vec![
@@ -35,12 +49,19 @@ fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), PFError> {
 	];
 	apdu.extend_from_slice(RESCUE_AID);
 
+	log::debug!("Sending Select Applet APDU...");
 	let mut rx_buf = [0; 256];
-	let rx = card.transmit(&apdu, &mut rx_buf)?;
+	let rx = card.transmit(&apdu, &mut rx_buf).map_err(|e| {
+		log::error!("Failed to transmit Select Applet APDU: {}", e);
+		e
+	})?;
 
 	// Check Success (0x90 0x00)
 	if !rx.ends_with(&[0x90, 0x00]) {
-		log::error!("Rescue Applet not found on the device!");
+		log::error!(
+			"Rescue Applet not found on the device! Response: {:02X?}",
+			rx
+		);
 		return Err(PFError::Device(
 			// There is no such mode as fido, i tink the rescue applet stays active and at the same time fido mode works?
 			// Need to study this more.
@@ -54,7 +75,13 @@ fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), PFError> {
 
 pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	log::info!("Reading full device details");
-	let (card, select_resp) = connect_and_select()?;
+	let (card, select_resp) = connect_and_select().map_err(|e| {
+		log::error!(
+			"Failed to connect and select Rescue Applet in read_device_details: {}",
+			e
+		);
+		e
+	})?;
 
 	if select_resp.len() < 14 {
 		return Err(PFError::Device("Invalid select response".into()));
@@ -325,7 +352,13 @@ pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
 
 	log::debug!("TLV payload size: {} bytes", tlv.len());
 
-	let (card, _) = connect_and_select()?;
+	let (card, _) = connect_and_select().map_err(|e| {
+		log::error!(
+			"Failed to connect and select Rescue Applet in write_config: {}",
+			e
+		);
+		e
+	})?;
 
 	// APDU: 80 1C 01 00 [Lc] [Data]
 	let mut apdu = vec![
@@ -350,7 +383,13 @@ pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
 }
 
 pub fn reboot_device(to_bootsel: bool) -> Result<String, PFError> {
-	let (card, _) = connect_and_select()?;
+	let (card, _) = connect_and_select().map_err(|e| {
+		log::error!(
+			"Failed to connect and select Rescue Applet in reboot_device: {}",
+			e
+		);
+		e
+	})?;
 
 	let param = if to_bootsel {
 		RebootParam::Bootsel
@@ -378,7 +417,13 @@ pub fn reboot_device(to_bootsel: bool) -> Result<String, PFError> {
 
 /// UNSTABLE! (WIP)
 pub fn enable_secure_boot(lock: bool) -> Result<String, PFError> {
-	let (card, _) = connect_and_select()?;
+	let (card, _) = connect_and_select().map_err(|e| {
+		log::error!(
+			"Failed to connect and select Rescue Applet in enable_secure_boot: {}",
+			e
+		);
+		e
+	})?;
 
 	// APDU: 80 1D [KeyIndex] [LockBool] 00
 	// KeyIndex = 0 (Default), LockBool = 1 if true
