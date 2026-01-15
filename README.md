@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![PicoForge Logo](static/pico-forge.svg)
+<img src="static/in.suyogtandel.picoforge.svg" width="512" height="512" alt="PicoForge Logo">
 
 **An open source commissioning tool for Pico FIDO security keys**
 
@@ -29,7 +29,7 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 - Real-time system logging and diagnostics
 - Support for multiple hardware variants and vendors
 
-> **Alpha Status**: This application is currently under active development and in alpha stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10 with the official Raspberry Pi Pico2 and currently supports Pico FIDO firmware version 7.2 only.
+> **Alpha Status**: This application is currently under active development and in alpha stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10 with the official Raspberry Pi Pico2 & ESP32-S3 and, currently supports Pico FIDO firmware version 7.2 only.
 
 ## Screenshots
 
@@ -105,42 +105,9 @@ The compiled binaries will be available in:
 - **macOS**: `src-tauri/target/release/bundle/dmg/`
 - **Windows**: `src-tauri/target/release/bundle/`
 
-### Platform-Specific Notes
+### Installation
 
-#### Linux
-
-- AppImages are preferred way to use the applicatoion, just make sure you have pcsc daemon installed and running before starting the appimage.
-
-- Flatpaks are planned for future `BETA` versions of the apps.
-
-- Install PC/SC dependencies:
-
-```bash
-sudo apt install libpcsclite-dev pcscd
-```
-
-- Start the PC/SC daemon:
-
-```bash
-sudo systemctl start pcscd
-sudo systemctl enable pcscd
-```
-
-#### macOS
-
-- App has not been tested by me on macos and I cannot debug for it ( as I do not have a mac ), if someone is ready to help me, just open an issue or message me on the discord server.
-
-- No additional setup required. PC/SC framework is built-in.
-
-#### Windows
-
-- Run the app as `Administrator` or it will not work correctly or fail to detect the device.
-
-- Ensure Smart Card service is running:
-
-```powershell
-Get-Service SCardSvr | Start-Service
-```
+Check the official [PicoForge Wiki](https://github.com/librekeys/picoforge/wiki/Installation) for installation info of the application.
 
 ## Usage
 
@@ -231,6 +198,10 @@ See [LICENSE](LICENSE) for full details.
 
 - **Suyog Tandel** ([@lockedmutex](https://github.com/lockedmutex))
 
+## Contributers
+
+- **Vaishakh Nair** ([@vaishakhsnair](https://github.com/vaishakhsnair))
+
 ## Acknowledgments
 
 - [Pico FIDO](https://github.com/polhenarejos/pico-fido) - The firmware this tool configures
@@ -256,7 +227,7 @@ See [LICENSE](LICENSE) for full details.
 > The secure boot feature can permanently lock devices if misconfigured. Always understand the implications before enabling security features.
 
 > [!CAUTION]
-> **USB VID/PID Notice**: The vendor presets provided in this software include USB Vendor IDs (VID) and Product IDs (PID) that are the intellectual property of their respective owners (Yubico, Nitrokey, FSIJ, Raspberry Pi Foundation, and others). These identifiers are included for testing and educational purposes only. You are NOT authorized to distribute or commercially market devices using VID/PID combinations you do not own or license. Commercial distribution requires obtaining your own VID from the USB Implementers Forum ([usb.org](https://www.usb.org/getting-vendor-id)) and complying with all applicable trademark and certification requirements. Unauthorized use may violate USB-IF policies and intellectual property laws. The PicoForge developers assume no liability for misuse of USB identifiers.
+> **USB VID/PID Notice**: The vendor presets provided in this software include USB Vendor IDs (VID) and Product IDs (PID) that are the intellectual property of their respective owners. These identifiers are included for testing and educational purposes only. You are NOT authorized to distribute or commercially market devices using VID/PID combinations you do not own or license. Commercial distribution requires obtaining your own VID from the USB Implementers Forum ([usb.org](https://www.usb.org/getting-vendor-id)) and complying with all applicable trademark and certification requirements. Unauthorized use may violate USB-IF policies and intellectual property laws. The PicoForge developers assume no liability for misuse of USB identifiers.
 
 ---
 

@@ -29,6 +29,30 @@ pub fn setup_window_state_listener(window: &WebviewWindow) {
 	});
 }
 
+#[tauri::command]
+fn minimize_window(window: WebviewWindow) {
+	let _ = window.minimize();
+}
+
+#[tauri::command]
+fn toggle_maximize_window(window: WebviewWindow) {
+	if window.is_maximized().unwrap_or(false) {
+		let _ = window.unmaximize();
+	} else {
+		let _ = window.maximize();
+	}
+}
+
+#[tauri::command]
+fn close_window(window: WebviewWindow) {
+	let _ = window.close();
+}
+
+#[tauri::command]
+fn get_window_maximized(window: WebviewWindow) -> bool {
+	window.is_maximized().unwrap_or(false)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
 	logging::logger_init();
@@ -53,7 +77,11 @@ pub fn run() {
 			io::delete_credential,
 			io::set_min_pin_length,
 			io::enable_secure_boot,
-			io::reboot
+			io::reboot,
+			minimize_window,
+			toggle_maximize_window,
+			close_window,
+			get_window_maximized
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running tauri application");

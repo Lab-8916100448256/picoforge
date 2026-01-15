@@ -20,12 +20,13 @@
   <Card.Root>
     <Card.Content class="pt-6">
       <div class="flex flex-col items-center justify-center space-y-4 text-center py-8">
-        <div class="bg-primary text-primary p-6 rounded-2xl">
-          <img src="/build-configure-symbolic.svg" alt="PicoForge Logo" class="h-12 w-12" />
-        </div>
+        <!-- <div class="bg-primary text-primary p-6 rounded-2xl"> -->
+        <!-- <img src="/build-configure-symbolic.svg" alt="PicoForge Logo" class="h-12 w-12" /> -->
+        <!-- </div> -->
+        <img src="/in.suyogtandel.picoforge.svg" alt="PicoForge Logo" class="h-64 w-64 shadow-sm" />
 
         <h2 class="text-2xl font-bold">PicoForge</h2>
-        <Badge variant="secondary" class="px-4 py-1">v0.1.5-Alpha</Badge>
+        <Badge variant="secondary" class="px-4 py-1">v0.2.1-Alpha</Badge>
         <p class="text-muted-foreground max-w-md">
           An open source commissioning tool for Pico FIDO security keys. Developed with Rust, Tauri, and Svelte.
         </p>
