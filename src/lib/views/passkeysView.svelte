@@ -17,6 +17,7 @@
   let pin = $state("");
   let error = $state("");
   let showPinDialog = $state(false);
+  let pinDialogShown = $state(false);
 
   let detailsOpen = $state(false);
   let selectedCredential: StoredCredential | null = $state(null);
@@ -26,10 +27,12 @@
   let deleteConfirmationInput = $state("");
 
   $effect(() => {
-    if (device.connected && !device.unlocked) {
+    if (device.connected && !device.unlocked && !pinDialogShown) {
       showPinDialog = true;
-    } else {
+      pinDialogShown = true;
+    } else if (!device.connected) {
       showPinDialog = false;
+      pinDialogShown = false;
     }
   });
 
@@ -42,7 +45,10 @@
     loading = true;
     const res = await device.getCredentials(pin);
 
-    if (!res.success) {
+    if (res.success) {
+      showPinDialog = false;
+      pinDialogShown = false;
+    } else {
       error = typeof res.msg === "string" ? res.msg : "Failed to verify PIN";
     }
 
@@ -85,6 +91,7 @@
     device.lock();
     pin = "";
     error = "";
+    pinDialogShown = false;
   }
 
   function openDetails(cred: StoredCredential) {
