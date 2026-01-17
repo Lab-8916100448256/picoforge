@@ -43,12 +43,13 @@ export PATH="$DENO_INSTALL/bin:$PATH"
 deno --version
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-export PATH=$(pwd)/.cargo/bin:$PATH
+export PATH="$HOME/.cargo/bin:$PATH"
 rustc --version
 
 %build
 export DENO_INSTALL="$HOME/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
+export PATH="$HOME/.cargo/bin:$PATH"
 
 # Build the App
 # This will download Rust crates and Deno modules over the internet
