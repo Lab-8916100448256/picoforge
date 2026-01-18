@@ -14,14 +14,22 @@ use std::io::Cursor;
 fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), PFError> {
 	log::debug!("Establishing PCSC context...");
 	let ctx = Context::establish(Scope::User).map_err(|e| {
-		log::error!("Failed to establish PCSC context: {}", e);
+		log::error!(
+			"Failed to establish PCSC context [{}]: {}",
+			std::any::type_name_of_val(&e),
+			e
+		);
 		e
 	})?;
 
 	let mut readers_buf = [0; 2048];
 	log::debug!("Listing readers...");
 	let mut readers = ctx.list_readers(&mut readers_buf).map_err(|e| {
-		log::error!("Failed to list readers: {}", e);
+		log::error!(
+			"Failed to list readers [{}]: {}",
+			std::any::type_name_of_val(&e),
+			e
+		);
 		e
 	})?;
 
@@ -35,7 +43,11 @@ fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), PFError> {
 	let card = ctx
 		.connect(reader, ShareMode::Shared, Protocols::ANY)
 		.map_err(|e| {
-			log::error!("Failed to connect to card: {}", e);
+			log::error!(
+				"Failed to connect to card [{}]: {}",
+				std::any::type_name_of_val(&e),
+				e
+			);
 			e
 		})?;
 
@@ -52,7 +64,11 @@ fn connect_and_select() -> Result<(pcsc::Card, Vec<u8>), PFError> {
 	log::debug!("Sending Select Applet APDU...");
 	let mut rx_buf = [0; 256];
 	let rx = card.transmit(&apdu, &mut rx_buf).map_err(|e| {
-		log::error!("Failed to transmit Select Applet APDU: {}", e);
+		log::error!(
+			"Failed to transmit Select Applet APDU [{}]: {}",
+			std::any::type_name_of_val(&e),
+			e
+		);
 		e
 	})?;
 
@@ -77,7 +93,8 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	log::info!("Reading full device details");
 	let (card, select_resp) = connect_and_select().map_err(|e| {
 		log::error!(
-			"Failed to connect and select Rescue Applet in read_device_details: {}",
+			"Failed to connect and select Rescue Applet in read_device_details [{}]: {}",
+			std::any::type_name_of_val(&e),
 			e
 		);
 		e
@@ -370,7 +387,8 @@ pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
 
 	let (card, _) = connect_and_select().map_err(|e| {
 		log::error!(
-			"Failed to connect and select Rescue Applet in write_config: {}",
+			"Failed to connect and select Rescue Applet in write_config [{}]: {}",
+			std::any::type_name_of_val(&e),
 			e
 		);
 		e
@@ -401,7 +419,8 @@ pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
 pub fn reboot_device(to_bootsel: bool) -> Result<String, PFError> {
 	let (card, _) = connect_and_select().map_err(|e| {
 		log::error!(
-			"Failed to connect and select Rescue Applet in reboot_device: {}",
+			"Failed to connect and select Rescue Applet in reboot_device [{}]: {}",
+			std::any::type_name_of_val(&e),
 			e
 		);
 		e
@@ -435,7 +454,8 @@ pub fn reboot_device(to_bootsel: bool) -> Result<String, PFError> {
 pub fn enable_secure_boot(lock: bool) -> Result<String, PFError> {
 	let (card, _) = connect_and_select().map_err(|e| {
 		log::error!(
-			"Failed to connect and select Rescue Applet in enable_secure_boot: {}",
+			"Failed to connect and select Rescue Applet in enable_secure_boot [{}]: {}",
+			std::any::type_name_of_val(&e),
 			e
 		);
 		e
