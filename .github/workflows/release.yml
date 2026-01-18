@@ -31,12 +31,14 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: latest
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -49,7 +51,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcsclite-dev libudev-dev libusb-1.0-0-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcsclite-dev libudev-dev libusb-1.0-0-dev podman
 
       - name: install dependencies (ubuntu-arm64 only)
         if: matrix.platform == 'ubuntu-24.04-arm'
@@ -90,12 +92,6 @@ jobs:
             > [!CAUTION]
             > This is an alpha release and thus can have some bugs, report them using github issues.
 
-            ### Changelog:
-
-            - Now manage stored passkeys on your pico-key from picoforge app itself.
-            - Add Linux arm builds of the app in releases.
-            - Fix AppImages not detecting the key.
-
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
@@ -135,3 +131,65 @@ jobs:
           gh release upload "v${{ env.version }}" "$APPIMAGE_PATH" --clobber
 
           echo "Success! The Draft Release now has the fixed AppImage."
+
+      - name: Sync Spec Version & Tag (Podman Container)
+        if: matrix.platform == 'ubuntu-22.04'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat << 'EOF' > ./update_spec_in_container.sh
+          #!/bin/sh
+          set -e
+
+          dnf install -y tito git
+
+          git config --global --add safe.directory /workspace
+          git config --global user.email 'git@suyogtandel.in'
+          git config --global user.name 'Suyog Tandel'
+
+          git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY.git
+
+          CARGO_FILE="src-tauri/Cargo.toml"
+          NEW_VERSION=$(grep -m 1 '^version' "$CARGO_FILE" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+
+          CURRENT_SPEC_VERSION=$(grep -m 1 '^Version:' picoforge.spec | awk '{print $2}')
+          CURRENT_SPEC_RELEASE=$(grep -m 1 '^Release:' picoforge.spec | awk '{print $2}' | sed 's/%{?dist}//')
+
+          echo "Cargo Version: $NEW_VERSION"
+          echo "Spec Version:  $CURRENT_SPEC_VERSION"
+          echo "Spec Release:  $CURRENT_SPEC_RELEASE"
+
+          if [ "$NEW_VERSION" != "$CURRENT_SPEC_VERSION" ]; then
+              echo "New version detected. Resetting Release to 1."
+              sed -i "s/^Version:.*/Version:        $NEW_VERSION/" picoforge.spec
+              sed -i "s/^Release:.*/Release:        1%{?dist}/" picoforge.spec
+          else
+              echo "Version match. Incrementing Release number."
+              NEW_RELEASE=$((CURRENT_SPEC_RELEASE + 1))
+              sed -i "s/^Release:.*/Release:        $NEW_RELEASE%{?dist}/" picoforge.spec
+          fi
+
+          if git diff --quiet picoforge.spec; then
+            echo "No changes to spec file."
+          else
+            git add picoforge.spec
+            git commit -m "chore: sync spec to $NEW_VERSION [skip ci]"
+          fi
+
+          tito tag --offline --accept-auto-changelog --keep-version
+          git pull --rebase origin main
+          git push --follow-tags origin HEAD:main HEAD:release
+          EOF
+
+          chmod +x ./update_spec_in_container.sh
+
+          podman run --rm \
+            --security-opt label=disable \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            -e GITHUB_TOKEN=$GITHUB_TOKEN \
+            -e GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
+            fedora:latest \
+            /workspace/update_spec_in_container.sh
+
+          rm ./update_spec_in_container.sh

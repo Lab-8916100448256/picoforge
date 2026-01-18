@@ -1,6 +1,6 @@
-# PicoForge
-
 <div align="center">
+
+# PicoForge
 
 <img src="static/in.suyogtandel.picoforge.svg" width="512" height="512" alt="PicoForge Logo">
 
@@ -9,6 +9,8 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![GitHub issues](https://img.shields.io/github/issues/librekeys/picoforge)](https://github.com/librekeys/picoforge/issues)
 [![GitHub stars](https://img.shields.io/github/stars/librekeys/picoforge)](https://github.com/librekeys/picoforge/stargazers)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/librekeys/picoforge/release.yml)
+[![Copr build status](https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/package/picoforge/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/package/picoforge/)
 
 </div>
 
@@ -16,7 +18,7 @@
 > PicoForge is an independent, community-developed tool and is not affiliated with or endorsed by the official [pico-fido](https://github.com/polhenarejos/pico-fido) project. 
 > This software does not share any code with the official closed-source pico-fido application.
 >
-> For some reason, when running the app on windows, it needs to be ran as administrator or it cannot detect the device, this will be fixed in future. Till then run the app as admin.
+> Check application [Installation Wiki](https://github.com/librekeys/picoforge/wiki/Installation) for installation guide of the PicoForge app on your system.
 
 ## About
 
@@ -36,15 +38,15 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 <div align="center">
 
 ### Main Interface
-![PicoForge Main Interface](assets/screenshot-1.webp)
+![PicoForge Main Interface](data/screenshots/screenshot-1.webp)
 
 ### Configuration Panel
 
 #### Pin config
-![Configuration Options](assets/screenshot-2.webp)
+![Configuration Options](data/screenshots/screenshot-2.webp)
 
 #### Other Config
-![Device Management](assets/screenshot-3.webp)
+![Device Management](data/screenshots/screenshot-3.webp)
 
 </div>
 
@@ -54,8 +56,25 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 - **Security Management** - Enable secure boot and firmware verification (experimental and WIP)
 - **Real-time Monitoring** - View flash usage, connection status, and system logs
 - **Modern UI** - Clean, responsive interface built with Svelte and shadcn-svelte
-- **Multi-Vendor Support** - Preset configurations for YubiKey, Nitrokey, SoloKeys, and more
+- **Multi-Vendor Support** - Compatible with multiple hardware variants
 - **Cross-Platform** - Works on Windows, macOS, and Linux
+
+### Installation
+
+Check the official [PicoForge Wiki](https://github.com/librekeys/picoforge/wiki/Installation) for installation info of the application.
+
+## Usage
+
+1. Connect your smart card reader
+2. Insert your Pico FIDO device
+3. Launch PicoForge
+4. Click **Refresh** button at top right corner to detect your key
+5. Navigate through the sidebar to configure settings:
+   - **Home** - Device overview and quick actions
+   - **Configuration** - USB settings, LED options
+   - **Security** - Secure boot management (experimental)
+   - **Logs** - Real-time event monitoring
+   - **About** - Application information
 
 ## Requirements
 
@@ -82,22 +101,42 @@ cd picoforge
 
 ### 2. Install Dependencies
 
+#### Using Deno (Recommended)
+
 ```bash
 deno install
+```
+
+#### Using npm
+
+```bash
+npm install
 ```
 
 ### 3. Build the Application
 
 #### Development Build
 
+**With Deno:**
 ```bash
 deno task tauri dev
 ```
 
+**With npm:**
+```bash
+npm run tauri dev
+```
+
 #### Production Build
 
+**With Deno:**
 ```bash
 deno task tauri build
+```
+
+**With npm:**
+```bash
+npm run tauri build
 ```
 
 The compiled binaries will be available in:
@@ -105,68 +144,65 @@ The compiled binaries will be available in:
 - **macOS**: `src-tauri/target/release/bundle/dmg/`
 - **Windows**: `src-tauri/target/release/bundle/`
 
-### Installation
-
-Check the official [PicoForge Wiki](https://github.com/librekeys/picoforge/wiki/Installation) for installation info of the application.
-
-## Usage
-
-1. Connect your smart card reader
-2. Insert your Pico FIDO device
-3. Launch PicoForge
-4. Click **Refresh** button at top right corner to detect your key
-5. Navigate through the sidebar to configure settings:
-   - **Home** - Device overview and quick actions
-   - **Configuration** - USB settings, LED options
-   - **Security** - Secure boot management (experimental)
-   - **Logs** - Real-time event monitoring
-   - **About** - Application information
-
-### Configuration Options
-
-#### USB Identity
-- **VID/PID** - Vendor and Product IDs (hex format)
-- **Product Name** - Device name shown to host system
-- **Vendor Presets** - Quick selection for common manufacturers
-
-#### LED Settings
-- **GPIO Pin** - Hardware pin for LED control
-- **Brightness** - Intensity level (0-15)
-- **Driver Type** - Hardware-specific LED drivers
-- **Options** - Dimmable, steady mode, power cycle behavior
-
-#### Advanced
-- **Touch Timeout** - User presence button timeout (seconds)
-- **Secp256k1** - Enable secp256k1 curve support
-- **Secure Boot** - Firmware signature verification (⚠️ experimental and WIP)
-
 ## Project Structure
 
 ```
 picoforge/
 ├── src/                      # Svelte frontend
 │   ├── lib/                  # Reusable components & utilities
+│   │   ├── components/       # UI components
+│   │   ├── device/           # Device-related logic
+│   │   ├── hooks/            # Custom Svelte hooks
+│   │   ├── layout/           # Layout components
+│   │   ├── services/         # Service layer
+│   │   ├── state/            # State management
+│   │   ├── utils.ts          # Utility functions
+│   │   └── views/            # View components
 │   ├── routes/               # SvelteKit pages
+│   │   ├── +layout.svelte    # Root layout
+│   │   ├── +layout.ts        # Layout configuration
+│   │   └── +page.svelte      # Home page
 │   ├── app.css               # Global styles
 │   └── app.html              # HTML template
 ├── src-tauri/                # Rust backend
 │   ├── src/                  # Rust source code
-│   │   └── lib.rs            # Tauri commands & PC/SC logic
+│   │   ├── fido/             # FIDO device logic
+│   │   ├── rescue/           # Rescue mode functionality
+│   │   ├── error.rs          # Error handling
+│   │   ├── io.rs             # I/O operations
+│   │   ├── lib.rs            # Tauri commands & PC/SC logic
+│   │   ├── logging.rs        # Logging utilities
+│   │   ├── main.rs           # Entry point
+│   │   └── types.rs          # Type definitions
 │   ├── icons/                # Application icons
 │   ├── capabilities/         # Tauri permissions
+│   │   └── default.json      # Default capabilities
 │   ├── Cargo.toml            # Rust dependencies
+│   ├── Cargo.lock            # Rust lock file
 │   ├── tauri.conf.json       # Tauri configuration
-│   └── build.rs              # Build script
+│   ├── build.rs              # Build script
+│   └── rustfmt.toml          # Rust formatting config
 ├── static/                   # Static assets
 │   ├── build-configure-symbolic.svg
-│   └── favicon.png
+│   ├── favicon.png
+│   ├── in.suyogtandel.picoforge.svg
+│   ├── svelte.svg
+│   ├── tauri.svg
+│   └── vite.svg
+├── data/                     # Application data
+│   ├── in.suyogtandel.picoforge.desktop
+│   └── screenshots/          # Screenshots
 ├── node_modules/             # Deno node compatibility modules
 ├── components.json           # shadcn-svelte config
 ├── package.json              # Node package manifest
+├── package-lock.json         # npm lock file
+├── deno.json                 # Deno configuration
 ├── deno.lock                 # Deno lock file
 ├── svelte.config.js          # SvelteKit configuration
 ├── vite.config.js            # Vite bundler config
 ├── tsconfig.json             # TypeScript configuration
+├── biome.json                # Biome configuration
+├── CREDITS.md                # Credits
 └── LICENSE                   # AGPL-3.0 license
 ```
 
@@ -197,18 +233,6 @@ See [LICENSE](LICENSE) for full details.
 ## Maintainers
 
 - **Suyog Tandel** ([@lockedmutex](https://github.com/lockedmutex))
-
-## Contributers
-
-- **Vaishakh Nair** ([@vaishakhsnair](https://github.com/vaishakhsnair))
-
-## Acknowledgments
-
-- [Pico FIDO](https://github.com/polhenarejos/pico-fido) - The firmware this tool configures
-- [Tauri](https://tauri.app/) - Desktop application framework
-- [Svelte](https://svelte.dev/) - Reactive UI framework
-- [shadcn-svelte](https://www.shadcn-svelte.com/) - UI component library
-- [pcsc-rust](https://github.com/bluetech/pcsc-rust) - Smart card interface
 
 ## Support
 

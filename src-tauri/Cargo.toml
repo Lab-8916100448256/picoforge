@@ -1,8 +1,8 @@
 [package]
 name = "picoforge"
-version = "0.2.0"
+version = "0.2.1"
 description = "An open source commissioning tool for Pico FIDO security keys. Developed with Rust, Tauri, and Svelte."
-authors = ["Suyog Tandel"]
+authors = ["Suyog Tandel", "PicoForge Contributers"]
 license = "AGPL-3.0"
 edition = "2024"
 
