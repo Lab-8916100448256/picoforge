@@ -26,4 +26,4 @@ jobs:
         with:
           path: docs
           token: ${{ secrets.WIKI_SYNC_PAT_TOKEN }}
-          commit_message: "Sync docs from main repo: ${{ github.event.head_commit.message }}"
+          commit-message: "Sync docs from main repo: ${{ github.event.head_commit.message }}"
