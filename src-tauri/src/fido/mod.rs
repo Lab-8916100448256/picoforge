@@ -37,7 +37,11 @@ pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
 		max_msg_size: info.max_msg_size,
 		pin_protocols: info.pin_uv_auth_protocols,
 		min_pin_length: info.min_pin_length,
-		firmware_version: format!("0x{:X}", info.firmware_version),
+		firmware_version: format!(
+			"{}.{}",
+			(info.firmware_version >> 8) & 0xFF,
+			info.firmware_version & 0xFF
+		),
 	})
 }
 
@@ -188,7 +192,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 		m.get(&Value::Integer(0x0E))
 			.and_then(|v| {
 				if let Value::Integer(i) = v {
-					Some(format!("0x{:X}", i))
+					Some(format!("{}.{}", (i >> 8) & 0xFF, i & 0xFF))
 				} else {
 					None
 				}
@@ -317,7 +321,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 
 	Ok(FullDeviceStatus {
 		info: DeviceInfo {
-			serial: aaguid_str, // Using AAGUID as serial since unique serial isn't available
+			serial: "?".to_string(), // Serial number is not available through fido. Previous code was using AAGUID as serial but it is too long to display in place of serial it is already displayed somewhere else.
 			flash_used: used / 1024,
 			flash_total: total / 1024,
 			firmware_version: fw_version,
