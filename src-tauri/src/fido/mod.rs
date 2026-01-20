@@ -444,7 +444,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 	let args = MakeCredentialArgs {
 		rpid: "Pico Keys".to_string(),
 		challenge: challenge.to_vec(),
-		pin: pin,
+		pin: pin.as_deref(),
 		key_types: vec![],
 		uv: None,
 		exclude_list: vec![],
