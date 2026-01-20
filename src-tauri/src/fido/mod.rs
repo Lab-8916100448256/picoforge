@@ -319,5 +319,6 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 		config,
 		secure_boot: false,
 		secure_lock: false,
+		method: "FIDO".to_string(),
 	})
 }
