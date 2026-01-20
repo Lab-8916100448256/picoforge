@@ -4,6 +4,8 @@ use anyhow::{Result, anyhow};
 use rand::Rng;
 use std::time::Duration;
 
+use crate::error::PFError;
+
 // HID Transport Constants
 const HID_REPORT_SIZE: usize = 64;
 const HID_USAGE_PAGE_FIDO: u16 = 0xF1D0;
@@ -35,7 +37,7 @@ impl HidTransport {
 			.find(|d| d.usage_page() == HID_USAGE_PAGE_FIDO)
 			.ok_or_else(|| {
 				log::warn!("No FIDO device found with Usage Page 0xF1D0.");
-				anyhow!("No FIDO device found. Is it plugged in?")
+				PFError::NoDevice
 			})?;
 
 		log::debug!(

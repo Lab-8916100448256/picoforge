@@ -149,8 +149,12 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	log::info!("Starting FIDO device details read...");
 
 	let transport = HidTransport::open().map_err(|e| {
-		log::error!("Failed to open HID transport: {}", e);
-		PFError::Device(e.to_string())
+		if let Some(PFError::NoDevice) = e.downcast_ref::<PFError>() {
+			PFError::NoDevice
+		} else {
+			log::error!("Failed to open HID transport: {}", e);
+			PFError::Device(e.to_string())
+		}
 	})?;
 
 	// --- 1. Get Info ---
