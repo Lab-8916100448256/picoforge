@@ -453,9 +453,10 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 		extensions: None,
 	};
 
-	device
-		.make_credential_with_args(&args)
-		.map_err(|e| PFError::Device(format!("MakeCredential failed: {:?}", e)))?;
+	device.make_credential_with_args(&args).map_err(|e| {
+		log::error!("FIDO make_credential_with_args failed: {:?}", e);
+		PFError::Device(format!("MakeCredential failed: {:?}", e))
+	})?;
 
 	Ok("Commissioned successfully!".to_string())
 }

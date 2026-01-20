@@ -165,8 +165,10 @@ class DeviceManager {
         return { success: true, msg: "Configuration Applied Successfully!" };
       }
     } catch (err: any) {
-      logger.add(`Write Failed: ${err}`, "error");
-      return { success: false, msg: `Error: ${err}` };
+      console.error("Write failed:", err);
+      const msg = typeof err === "string" ? err : err.message || JSON.stringify(err);
+      logger.add(`Write Failed: ${msg}`, "error");
+      return { success: false, msg: `Error: ${msg}` };
     } finally {
       this.loading = false;
     }
