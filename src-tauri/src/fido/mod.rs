@@ -342,7 +342,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	})
 }
 
-pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
+pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<String, PFError> {
 	log::info!("Starting FIDO write_config...");
 
 	let mut byte_array = Vec::new();
@@ -444,7 +444,7 @@ pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
 	let args = MakeCredentialArgs {
 		rpid: "Pico Keys".to_string(),
 		challenge: challenge.to_vec(),
-		pin: None,
+		pin: pin,
 		key_types: vec![],
 		uv: None,
 		exclude_list: vec![],

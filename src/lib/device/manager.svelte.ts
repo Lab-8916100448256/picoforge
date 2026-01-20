@@ -95,7 +95,7 @@ class DeviceManager {
     }
   }
 
-  async save() {
+  async save(pin: string | null = null) {
     if (!this.connected || !this.#originalConfig) return { success: false, msg: "Device not connected" };
 
     this.loading = true;
@@ -158,7 +158,7 @@ class DeviceManager {
         return { success: false, msg: "No changes detected." };
       } else {
         logger.add("Sending configuration to device...", "info");
-        const response = await invoke("write_config", { config: rustConfig });
+        const response = await invoke("write_config", { config: rustConfig, method: this.method, pin });
         logger.add(`Device Response: ${response}`, "success");
 
         await this.refresh();
