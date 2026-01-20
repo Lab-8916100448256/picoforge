@@ -5,13 +5,18 @@ pub mod hid;
 
 use crate::{
 	error::PFError,
-	types::{AppConfig, DeviceInfo, FidoDeviceInfo, FullDeviceStatus, StoredCredential},
+	types::{
+		AppConfig, AppConfigInput, DeviceInfo, FidoDeviceInfo, FullDeviceStatus, StoredCredential,
+	},
 };
 use constants::*;
 use ctap_hid_fido2::{
-	Cfg, FidoKeyHidFactory, public_key_credential_descriptor::PublicKeyCredentialDescriptor,
+	Cfg, FidoKeyHidFactory, fidokey::make_credential::MakeCredentialArgs,
+	public_key_credential_descriptor::PublicKeyCredentialDescriptor,
+	public_key_credential_user_entity::PublicKeyCredentialUserEntity,
 };
 use hid::*;
+use rand::Rng;
 use serde_cbor_2::{Value, from_slice, to_vec};
 use std::collections::{BTreeMap, HashMap};
 
@@ -335,4 +340,122 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 		secure_lock: false,
 		method: "FIDO".to_string(),
 	})
+}
+
+pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
+	log::info!("Starting FIDO write_config...");
+
+	let mut byte_array = Vec::new();
+
+	// PHY_VID = 0x0, PHY_PID is part of it
+	if let (Some(vid_str), Some(pid_str)) = (&config.vid, &config.pid) {
+		let vid = u16::from_str_radix(vid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
+		let pid = u16::from_str_radix(pid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
+		byte_array.push(0x00); // PHY_VID
+		byte_array.push(4); // Length
+		byte_array.push((vid >> 8) as u8);
+		byte_array.push(vid as u8);
+		byte_array.push((pid >> 8) as u8);
+		byte_array.push(pid as u8);
+	}
+
+	// PHY_LED_GPIO = 0x4
+	if let Some(gpio) = config.led_gpio {
+		byte_array.push(0x04);
+		byte_array.push(1);
+		byte_array.push(gpio);
+	}
+
+	// PHY_LED_BTNESS = 0x5
+	if let Some(brightness) = config.led_brightness {
+		byte_array.push(0x05);
+		byte_array.push(1);
+		byte_array.push(brightness);
+	}
+
+	// PHY_UP_BUTTON = 0x8 (touch_timeout)
+	if let Some(timeout) = config.touch_timeout {
+		byte_array.push(0x08);
+		byte_array.push(1);
+		byte_array.push(timeout);
+	}
+
+	// PHY_OPTS = 0x6
+	let mut opts = 0u16;
+	if config.led_dimmable.unwrap_or(false) {
+		opts |= 0x02; // PHY_OPT_DIMM
+	}
+	if !config.power_cycle_on_reset.unwrap_or(true) {
+		opts |= 0x04; // PHY_OPT_DISABLE_POWER_RESET
+	}
+	if config.led_steady.unwrap_or(false) {
+		opts |= 0x08; // PHY_OPT_LED_STEADY
+	}
+	byte_array.push(0x06);
+	byte_array.push(2);
+	byte_array.push((opts >> 8) as u8);
+	byte_array.push(opts as u8);
+
+	// PHY_ENABLED_CURVES = 0xA
+	if config.enable_secp256k1.unwrap_or(false) {
+		byte_array.push(0x0A);
+		byte_array.push(4);
+		byte_array.push(0);
+		byte_array.push(0);
+		byte_array.push(0);
+		byte_array.push(0x08); // PHY_CURVE_SECP256K1
+	}
+
+	// PHY_USB_PRODUCT = 0x9
+	if let Some(name) = &config.product_name {
+		let name_bytes = name.as_bytes();
+		byte_array.push(0x09);
+		byte_array.push((name_bytes.len() + 1) as u8);
+		byte_array.extend_from_slice(name_bytes);
+		byte_array.push(0x00); // Null terminator
+	}
+
+	// PHY_LED_DRIVER = 0xC
+	if let Some(driver) = config.led_driver {
+		byte_array.push(0x0C);
+		byte_array.push(1);
+		byte_array.push(driver);
+	}
+
+	log::debug!(
+		"Encoded config ({} bytes): {:02X?}",
+		byte_array.len(),
+		byte_array
+	);
+
+	let cfg = Cfg::init();
+	let device = FidoKeyHidFactory::create(&cfg)
+		.map_err(|e| PFError::Device(format!("Could not connect to FIDO device: {:?}", e)))?;
+
+	let mut challenge = [0u8; 32];
+	rand::rng().fill(&mut challenge);
+
+	let user = PublicKeyCredentialUserEntity::new(
+		Some(&byte_array),
+		Some("+picoCommissionProfile"),
+		Some("Pico Commissioner"),
+	);
+
+	let args = MakeCredentialArgs {
+		rpid: "Pico Keys".to_string(),
+		challenge: challenge.to_vec(),
+		pin: None,
+		key_types: vec![],
+		uv: None,
+		exclude_list: vec![],
+		user_entity: Some(user),
+		rk: None,
+		extensions: None,
+	};
+
+	device
+		.make_credential_with_args(&args)
+		.map_err(|e| PFError::Device(format!("MakeCredential failed: {:?}", e)))?;
+
+	Ok("Commissioned successfully!".to_string())
 }

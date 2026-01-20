@@ -14,7 +14,13 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 
 #[tauri::command]
 pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
-	rescue::write_config(config)
+	match rescue::write_config(config.clone()) {
+		Ok(status) => Ok(status),
+		Err(e) => {
+			log::warn!("Rescue method failed: {}. Falling back to FIDO...", e);
+			fido::write_config(config)
+		}
+	}
 }
 
 #[tauri::command]
