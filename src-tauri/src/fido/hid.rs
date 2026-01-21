@@ -333,14 +333,19 @@ impl HidTransport {
 		message.push(ConfigSubCommand::VendorPrototype as u8);
 		message.extend(&sub_params_bytes);
 
-		// Sign using PIN token
-		// Since ctap-hid-fido2 doesn't expose the PinToken type directly, we use create_pin_auth
-		// which internally handles the token and HMAC. Note: This might use a token without ACFG permission
-		// if the crate doesn't support specific permissions for this call.
-		let pin_auth = device.create_pin_auth(pin, &message).map_err(|e| {
-			log::error!("Failed to create PIN auth: {:?}", e);
-			PFError::Device(format!("PIN auth failed: {:?}", e))
-		})?;
+		// Sign using PIN token with AuthenticatorConfiguration permission
+		use ctap_hid_fido2::fidokey::pin::Permission;
+		let pin_token = device
+			.get_pinuv_auth_token_with_permission(pin, Permission::AuthenticatorConfiguration)
+			.map_err(|e| {
+				log::error!("Failed to get PIN token with ACFG permission: {:?}", e);
+				PFError::Device(format!("PIN token acquisition failed: {:?}", e))
+			})?;
+
+		use ring::hmac;
+		let key = hmac::Key::new(hmac::HMAC_SHA256, &pin_token.key);
+		let sig = hmac::sign(&key, &message);
+		let pin_auth = sig.as_ref()[0..16].to_vec();
 
 		// Build full authenticatorConfig map
 		let mut config_map = BTreeMap::new();
