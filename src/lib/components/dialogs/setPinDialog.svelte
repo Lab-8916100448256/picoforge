@@ -4,44 +4,62 @@
   import { Label } from "$lib/components/ui/label";
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
 
-  import { configViewState as state } from "$lib/state/configState.svelte";
+  import { configViewState as configState } from "$lib/state/configState.svelte";
+  import { tick } from "svelte";
+
+  let currentPinRef = $state<HTMLInputElement | null>(null);
+  let newPinRef = $state<HTMLInputElement | null>(null);
+
+  $effect(() => {
+    if (configState.setPinDialogOpen) {
+      tick().then(() => {
+        if (!configState.isSettingPin && currentPinRef) {
+          currentPinRef.focus();
+        } else if (configState.isSettingPin && newPinRef) {
+          newPinRef.focus();
+        }
+      });
+    }
+  });
 </script>
 
-<AlertDialog.Root bind:open={state.setPinDialogOpen}>
+<AlertDialog.Root bind:open={configState.setPinDialogOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
       <AlertDialog.Title
-        >{state.isSettingPin ? "Set PIN" : "Change PIN"}</AlertDialog.Title
+        >{configState.isSettingPin
+          ? "Set PIN"
+          : "Change PIN"}</AlertDialog.Title
       >
       <AlertDialog.Description>
-        {state.isSettingPin
+        {configState.isSettingPin
           ? "Set a PIN for your FIDO2 device. Minimum length is " +
-            (state.minPinLength || 4) +
+            (configState.minPinLength || 4) +
             " characters."
           : "Enter your current PIN and choose a new one."}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <div class="space-y-4 py-4">
-      {#if !state.isSettingPin}
+      {#if !configState.isSettingPin}
         <div class="space-y-2">
           <Label for="current-pin">Current PIN</Label>
           <Input
+            bind:ref={currentPinRef}
             id="current-pin"
             type="password"
-            bind:value={state.currentPin}
+            bind:value={configState.currentPin}
             placeholder="Enter current PIN"
-            autofocus
           />
         </div>
       {/if}
       <div class="space-y-2">
         <Label for="new-pin">New PIN</Label>
         <Input
+          bind:ref={newPinRef}
           id="new-pin"
           type="password"
-          bind:value={state.newPin}
+          bind:value={configState.newPin}
           placeholder="Enter new PIN"
-          autofocus={state.isSettingPin}
         />
       </div>
       <div class="space-y-2">
@@ -49,19 +67,19 @@
         <Input
           id="confirm-pin"
           type="password"
-          bind:value={state.confirmPin}
+          bind:value={configState.confirmPin}
           placeholder="Confirm new PIN"
         />
       </div>
-      {#if state.pinError}
-        <p class="text-sm text-destructive">{state.pinError}</p>
+      {#if configState.pinError}
+        <p class="text-sm text-destructive">{configState.pinError}</p>
       {/if}
     </div>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel onclick={() => (state.setPinDialogOpen = false)}
+      <AlertDialog.Cancel onclick={() => (configState.setPinDialogOpen = false)}
         >Cancel</AlertDialog.Cancel
       >
-      <AlertDialog.Action onclick={() => state.handlePinChange()}
+      <AlertDialog.Action onclick={() => configState.handlePinChange()}
         >Confirm</AlertDialog.Action
       >
     </AlertDialog.Footer>

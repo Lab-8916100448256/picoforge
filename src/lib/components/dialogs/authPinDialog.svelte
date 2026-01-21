@@ -3,10 +3,19 @@
     import { Label } from "$lib/components/ui/label";
     import * as AlertDialog from "$lib/components/ui/alert-dialog";
 
-    import { configViewState as state } from "$lib/state/configState.svelte";
+    import { configViewState as configState } from "$lib/state/configState.svelte";
+    import { tick } from "svelte";
+
+    let inputRef = $state<HTMLInputElement | null>(null);
+
+    $effect(() => {
+        if (configState.authPinDialogOpen && inputRef) {
+            tick().then(() => inputRef?.focus());
+        }
+    });
 </script>
 
-<AlertDialog.Root bind:open={state.authPinDialogOpen}>
+<AlertDialog.Root bind:open={configState.authPinDialogOpen}>
     <AlertDialog.Content>
         <AlertDialog.Header>
             <AlertDialog.Title>Authentication Required</AlertDialog.Title>
@@ -19,25 +28,27 @@
             <div class="space-y-2">
                 <Label for="auth-pin">FIDO2 PIN</Label>
                 <Input
+                    bind:ref={inputRef}
                     id="auth-pin"
                     type="password"
-                    bind:value={state.authPin}
+                    bind:value={configState.authPin}
                     placeholder="Enter your PIN"
-                    autofocus
                     onkeydown={(e) =>
-                        e.key === "Enter" && state.confirmAuthPinSave()}
+                        e.key === "Enter" && configState.confirmAuthPinSave()}
                 />
             </div>
-            {#if state.authPinError}
-                <p class="text-sm text-destructive">{state.authPinError}</p>
+            {#if configState.authPinError}
+                <p class="text-sm text-destructive">
+                    {configState.authPinError}
+                </p>
             {/if}
         </div>
         <AlertDialog.Footer>
             <AlertDialog.Cancel
-                onclick={() => (state.authPinDialogOpen = false)}
+                onclick={() => (configState.authPinDialogOpen = false)}
                 >Cancel</AlertDialog.Cancel
             >
-            <AlertDialog.Action onclick={() => state.confirmAuthPinSave()}
+            <AlertDialog.Action onclick={() => configState.confirmAuthPinSave()}
                 >Confirm</AlertDialog.Action
             >
         </AlertDialog.Footer>
