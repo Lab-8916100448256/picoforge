@@ -13,33 +13,63 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Update Minimum PIN Length</AlertDialog.Title>
       <AlertDialog.Description>
-        Set the minimum allowed PIN length (4-63 characters) and enter a new PIN that meets this requirement.
+        Set the minimum allowed PIN length (4-63 characters) and enter a new PIN
+        that meets this requirement.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <div class="space-y-4 py-4">
       <div class="space-y-2">
-        <Label for="min-pin-length">Minimum PIN Length ({state.minPinLength})</Label>
-        <Slider type="single" bind:value={state.minPinLength} min={4} max={63} step={1} />
+        <Label for="min-pin-length"
+          >Minimum PIN Length ({state.minPinLength})</Label
+        >
+        <Slider
+          type="single"
+          bind:value={state.minPinLength}
+          min={4}
+          max={63}
+          step={1}
+        />
       </div>
       <div class="space-y-2">
         <Label for="min-pin-current">Current PIN</Label>
-        <Input id="min-pin-current" type="password" bind:value={state.minPinCurrentPin} placeholder="Enter current PIN" />
+        <Input
+          id="min-pin-current"
+          type="password"
+          bind:value={state.minPinCurrentPin}
+          placeholder="Enter current PIN"
+          autofocus
+        />
       </div>
       <div class="space-y-2">
-        <Label for="min-pin-new">New PIN (min {state.minPinLength} chars)</Label>
-        <Input id="min-pin-new" type="password" bind:value={state.minPinNewPin} placeholder="Enter new PIN" />
+        <Label for="min-pin-new">New PIN (min {state.minPinLength} chars)</Label
+        >
+        <Input
+          id="min-pin-new"
+          type="password"
+          bind:value={state.minPinNewPin}
+          placeholder="Enter new PIN"
+        />
       </div>
       <div class="space-y-2">
         <Label for="min-pin-confirm">Confirm New PIN</Label>
-        <Input id="min-pin-confirm" type="password" bind:value={state.minPinConfirmPin} placeholder="Confirm new PIN" />
+        <Input
+          id="min-pin-confirm"
+          type="password"
+          bind:value={state.minPinConfirmPin}
+          placeholder="Confirm new PIN"
+        />
       </div>
       {#if state.minPinError}
         <p class="text-sm text-destructive">{state.minPinError}</p>
       {/if}
     </div>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel onclick={() => (state.minPinDialogOpen = false)}>Cancel</AlertDialog.Cancel>
-      <AlertDialog.Action onclick={state.handleMinPinChange}>Update</AlertDialog.Action>
+      <AlertDialog.Cancel onclick={() => (state.minPinDialogOpen = false)}
+        >Cancel</AlertDialog.Cancel
+      >
+      <AlertDialog.Action onclick={state.handleMinPinChange}
+        >Update</AlertDialog.Action
+      >
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>

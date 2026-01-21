@@ -23,6 +23,7 @@
                     type="password"
                     bind:value={state.authPin}
                     placeholder="Enter your PIN"
+                    autofocus
                     onkeydown={(e) =>
                         e.key === "Enter" && state.confirmAuthPinSave()}
                 />
