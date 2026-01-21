@@ -343,92 +343,6 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	})
 }
 
-fn send_vendor_config(
-	device: &ctap_hid_fido2::FidoKeyHid,
-	transport: &HidTransport,
-	pin: &str,
-	vendor_cmd: VendorConfigCommand,
-	param: Value,
-) -> Result<(), PFError> {
-	log::debug!("Sending vendor config command: {}...", vendor_cmd);
-
-	// Build subCommandParams (Key 0x02)
-	// This map contains:
-	// 0x01: vendorCommandId (u64)
-	// 0x02/0x03/0x04: param
-	let mut sub_params_inner = BTreeMap::new();
-	sub_params_inner.insert(
-		Value::Integer(0x01),
-		Value::Integer(vendor_cmd.to_u64() as i128),
-	);
-
-	match param {
-		Value::Bytes(_) => {
-			sub_params_inner.insert(Value::Integer(0x02), param.clone());
-		}
-		Value::Integer(_) => {
-			sub_params_inner.insert(Value::Integer(0x03), param.clone());
-		}
-		Value::Text(_) => {
-			sub_params_inner.insert(Value::Integer(0x04), param.clone());
-		}
-		_ => return Err(PFError::Io("Unsupported parameter type".into())),
-	}
-
-	let sub_params = Value::Map(sub_params_inner);
-	let sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
-
-	// Build HMAC message for signing
-	// According to FIDO 2.1: authenticate(pinUvAuthToken, 32×0xff || 0x0d || uint8(subCommand) || subCommandParams)
-	let mut message = vec![0xff; 32];
-	message.push(CtapCommand::Config as u8);
-	message.push(ConfigSubCommand::VendorPrototype as u8);
-	message.extend(&sub_params_bytes);
-
-	// Sign using PIN token
-	// Since ctap-hid-fido2 doesn't expose the PinToken type directly, we use create_pin_auth
-	// which internally handles the token and HMAC. Note: This might use a token without ACFG permission
-	// if the crate doesn't support specific permissions for this call.
-	let pin_auth = device.create_pin_auth(pin, &message).map_err(|e| {
-		log::error!("Failed to create PIN auth: {:?}", e);
-		PFError::Device(format!("PIN auth failed: {:?}", e))
-	})?;
-
-	// Build full authenticatorConfig map
-	let mut config_map = BTreeMap::new();
-	config_map.insert(
-		Value::Integer(ConfigParam::SubCommand as i128),
-		Value::Integer(ConfigSubCommand::VendorPrototype as i128),
-	);
-	config_map.insert(
-		Value::Integer(ConfigParam::SubCommandParams as i128),
-		sub_params,
-	);
-	config_map.insert(
-		Value::Integer(ConfigParam::PinUvAuthProtocol as i128),
-		Value::Integer(1),
-	);
-	config_map.insert(
-		Value::Integer(ConfigParam::PinUvAuthParam as i128),
-		Value::Bytes(pin_auth),
-	);
-
-	let config_payload_cbor =
-		to_vec(&Value::Map(config_map)).map_err(|e| PFError::Io(e.to_string()))?;
-
-	// Encapsulate for CTAP
-	let mut payload = vec![CtapCommand::Config as u8];
-	payload.extend(config_payload_cbor);
-
-	// Send via HID
-	transport.send_cbor(CTAPHID_CBOR, &payload).map_err(|e| {
-		log::error!("Failed to send FIDO config: {}", e);
-		PFError::Device(format!("FIDO config failed: {}", e))
-	})?;
-
-	Ok(())
-}
-
 pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<String, PFError> {
 	log::info!("Starting FIDO write_config...");
 
@@ -451,9 +365,8 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 		let vid = u16::from_str_radix(vid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
 		let pid = u16::from_str_radix(pid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
 		let vidpid = ((vid as u32) << 16) | (pid as u32);
-		send_vendor_config(
+		transport.send_vendor_config(
 			&device,
-			&transport,
 			pin_val,
 			VendorConfigCommand::PhysicalVidPid,
 			Value::Integer(vidpid as i128),
@@ -462,9 +375,8 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 
 	// LED GPIO config
 	if let Some(gpio) = config.led_gpio {
-		send_vendor_config(
+		transport.send_vendor_config(
 			&device,
-			&transport,
 			pin_val,
 			VendorConfigCommand::PhysicalLedGpio,
 			Value::Integer(gpio as i128),
@@ -473,9 +385,8 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 
 	// LED brightness config
 	if let Some(brightness) = config.led_brightness {
-		send_vendor_config(
+		transport.send_vendor_config(
 			&device,
-			&transport,
 			pin_val,
 			VendorConfigCommand::PhysicalLedBrightness,
 			Value::Integer(brightness as i128),
@@ -498,19 +409,18 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 		// In the firmware's phy_data, touch_timeout is often part of opts or separate.
 		// Looking at the previous code, it was separate (0x08).
 		// However, in vendor configuration, we usually send parameters individually.
-		send_vendor_config(
-			&device,
-			&transport,
-			pin_val,
-			VendorConfigCommand::PhysicalOptions, // Assuming there's a command for it or it's in opts
-			Value::Integer(timeout as i128),      // Wait, let's check VendorConfigCommand again
-		)
-		.ok(); // If it fails, maybe it's not supported as a standalone vendor cmd
+		transport
+			.send_vendor_config(
+				&device,
+				pin_val,
+				VendorConfigCommand::PhysicalOptions, // Assuming there's a command for it or it's in opts
+				Value::Integer(timeout as i128),      // Wait, let's check VendorConfigCommand again
+			)
+			.ok(); // If it fails, maybe it's not supported as a standalone vendor cmd
 	}
 
-	send_vendor_config(
+	transport.send_vendor_config(
 		&device,
-		&transport,
 		pin_val,
 		VendorConfigCommand::PhysicalOptions,
 		Value::Integer(opts as i128),

@@ -2,9 +2,12 @@
 
 use anyhow::{Result, anyhow};
 use rand::Rng;
+use serde_cbor_2::{Value, to_vec};
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use crate::error::PFError;
+use crate::fido::constants::*;
 
 // HID Transport Constants
 const HID_REPORT_SIZE: usize = 64;
@@ -275,5 +278,91 @@ impl HidTransport {
 		);
 		// Return payload without status byte
 		Ok(response_data[1..].to_vec())
+	}
+
+	pub fn send_vendor_config(
+		&self,
+		device: &ctap_hid_fido2::FidoKeyHid,
+		pin: &str,
+		vendor_cmd: VendorConfigCommand,
+		param: Value,
+	) -> Result<(), PFError> {
+		log::debug!("Sending vendor config command: {}...", vendor_cmd);
+
+		// Build subCommandParams (Key 0x02)
+		// This map contains:
+		// 0x01: vendorCommandId (u64)
+		// 0x02/0x03/0x04: param
+		let mut sub_params_inner = BTreeMap::new();
+		sub_params_inner.insert(
+			Value::Integer(0x01),
+			Value::Integer(vendor_cmd.to_u64() as i128),
+		);
+
+		match param {
+			Value::Bytes(_) => {
+				sub_params_inner.insert(Value::Integer(0x02), param.clone());
+			}
+			Value::Integer(_) => {
+				sub_params_inner.insert(Value::Integer(0x03), param.clone());
+			}
+			Value::Text(_) => {
+				sub_params_inner.insert(Value::Integer(0x04), param.clone());
+			}
+			_ => return Err(PFError::Io("Unsupported parameter type".into())),
+		}
+
+		let sub_params = Value::Map(sub_params_inner);
+		let sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
+
+		// Build HMAC message for signing
+		// According to FIDO 2.1: authenticate(pinUvAuthToken, 32×0xff || 0x0d || uint8(subCommand) || subCommandParams)
+		let mut message = vec![0xff; 32];
+		message.push(CtapCommand::Config as u8);
+		message.push(ConfigSubCommand::VendorPrototype as u8);
+		message.extend(&sub_params_bytes);
+
+		// Sign using PIN token
+		// Since ctap-hid-fido2 doesn't expose the PinToken type directly, we use create_pin_auth
+		// which internally handles the token and HMAC. Note: This might use a token without ACFG permission
+		// if the crate doesn't support specific permissions for this call.
+		let pin_auth = device.create_pin_auth(pin, &message).map_err(|e| {
+			log::error!("Failed to create PIN auth: {:?}", e);
+			PFError::Device(format!("PIN auth failed: {:?}", e))
+		})?;
+
+		// Build full authenticatorConfig map
+		let mut config_map = BTreeMap::new();
+		config_map.insert(
+			Value::Integer(ConfigParam::SubCommand as i128),
+			Value::Integer(ConfigSubCommand::VendorPrototype as i128),
+		);
+		config_map.insert(
+			Value::Integer(ConfigParam::SubCommandParams as i128),
+			sub_params,
+		);
+		config_map.insert(
+			Value::Integer(ConfigParam::PinUvAuthProtocol as i128),
+			Value::Integer(1),
+		);
+		config_map.insert(
+			Value::Integer(ConfigParam::PinUvAuthParam as i128),
+			Value::Bytes(pin_auth),
+		);
+
+		let config_payload_cbor =
+			to_vec(&Value::Map(config_map)).map_err(|e| PFError::Io(e.to_string()))?;
+
+		// Encapsulate for CTAP
+		let mut payload = vec![CtapCommand::Config as u8];
+		payload.extend(config_payload_cbor);
+
+		// Send via HID
+		self.send_cbor(CTAPHID_CBOR, &payload).map_err(|e| {
+			log::error!("Failed to send FIDO config: {}", e);
+			PFError::Device(format!("FIDO config failed: {}", e))
+		})?;
+
+		Ok(())
 	}
 }
