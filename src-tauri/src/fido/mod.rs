@@ -355,6 +355,13 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 	let device = FidoKeyHidFactory::create(&cfg)
 		.map_err(|e| PFError::Device(format!("Could not connect to FIDO device: {:?}", e)))?;
 
+	// Force CID negotiation on the library handle first to avoid race conditions
+	// with our custom HidTransport initialization.
+	let _ = device.get_cid().map_err(|e| {
+		log::warn!("Failed to pre-negotiate library CID: {:?}", e);
+		PFError::Device(format!("Library CID negotiation failed: {:?}", e))
+	})?;
+
 	let transport = HidTransport::open().map_err(|e| {
 		log::error!("Failed to open HID transport: {}", e);
 		PFError::Device(format!("Could not open HID transport: {}", e))

@@ -79,6 +79,14 @@ impl HidTransport {
 
 	fn init_channel(device: &hidapi::HidDevice) -> Result<u32> {
 		log::debug!("Initializing CTAPHID channel...");
+
+		// --- Drain Step ---
+		// Read and discard any pending packets to avoid using a stale response for CID negotiation.
+		let mut drain_buf = [0u8; HID_REPORT_SIZE];
+		while device.read_timeout(&mut drain_buf[..], 10).is_ok() {
+			log::trace!("Drained stale HID packet: {:02X?}", &drain_buf[0..16]);
+		}
+
 		let mut nonce = [0u8; 8];
 		rand::rng().fill(&mut nonce);
 
@@ -91,7 +99,7 @@ impl HidTransport {
 		report[8..16].copy_from_slice(&nonce);
 
 		log::trace!("Sending CTAPHID_INIT broadcast with nonce: {:02X?}", nonce);
-		device.write(&report).map_err(|e| {
+		device.write(&report[..]).map_err(|e| {
 			log::error!("Failed to write INIT packet: {}", e);
 			e
 		})?;
@@ -100,11 +108,11 @@ impl HidTransport {
 		let start = std::time::Instant::now();
 		while start.elapsed() < Duration::from_secs(1) {
 			let mut buf = [0u8; HID_REPORT_SIZE];
-			if device.read_timeout(&mut buf, 100).is_ok() {
+			if device.read_timeout(&mut buf[..], 100).is_ok() {
 				// Check if response matches our broadcast and nonce
 				if buf[0..4] == CTAPHID_CID_BROADCAST.to_be_bytes()
 					&& buf[4] == CTAPHID_INIT
-					&& &buf[7..15] == &nonce
+					&& buf[7..15] == nonce
 				{
 					// New CID is at bytes 16..20
 					let new_cid = u32::from_be_bytes([buf[15], buf[16], buf[17], buf[18]]);
@@ -141,7 +149,7 @@ impl HidTransport {
 		sent += to_copy;
 
 		// log::trace!("Writing Init Packet (Sent: {}/{})", sent, total_len);
-		if let Err(e) = self.device.write(&report) {
+		if let Err(e) = self.device.write(&report[..]) {
 			log::error!("Failed to write initial HID packet: {}", e);
 			return Err(e.into());
 		}
@@ -158,7 +166,7 @@ impl HidTransport {
 			sent += to_copy;
 
 			// log::trace!("Writing Cont Packet Seq {} (Sent: {}/{})", sequence - 1, sent, total_len);
-			if let Err(e) = self.device.write(&report) {
+			if let Err(e) = self.device.write(&report[..]) {
 				log::error!(
 					"Failed to write continuation HID packet (Seq {}): {}",
 					sequence - 1,
@@ -181,7 +189,7 @@ impl HidTransport {
 
 		let mut buf = [0u8; HID_REPORT_SIZE];
 		loop {
-			if let Err(e) = self.device.read_timeout(&mut buf, 2000) {
+			if let Err(e) = self.device.read_timeout(&mut buf[..], 2000) {
 				log::error!("Timeout reading response packet: {}", e);
 				return Err(e.into());
 			}
@@ -232,7 +240,7 @@ impl HidTransport {
 
 		// 2. Read Continuation Packets
 		while read_len < expected_len {
-			if let Err(e) = self.device.read_timeout(&mut buf, 500) {
+			if let Err(e) = self.device.read_timeout(&mut buf[..], 500) {
 				log::error!("Timeout reading continuation packet: {}", e);
 				return Err(e.into());
 			}
