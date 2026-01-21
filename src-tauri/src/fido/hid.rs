@@ -83,7 +83,10 @@ impl HidTransport {
 		// --- Drain Step ---
 		// Read and discard any pending packets to avoid using a stale response for CID negotiation.
 		let mut drain_buf = [0u8; HID_REPORT_SIZE];
-		while device.read_timeout(&mut drain_buf[..], 10).is_ok() {
+		while let Ok(n) = device.read_timeout(&mut drain_buf[..], 10) {
+			if n == 0 {
+				break;
+			}
 			log::trace!("Drained stale HID packet: {:02X?}", &drain_buf[0..16]);
 		}
 
