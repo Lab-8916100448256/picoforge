@@ -293,8 +293,7 @@ impl HidTransport {
 
 	pub fn send_vendor_config(
 		&self,
-		device: &ctap_hid_fido2::FidoKeyHid,
-		pin: &str,
+		pin_token: &[u8],
 		vendor_cmd: VendorConfigCommand,
 		param: Value,
 	) -> Result<(), PFError> {
@@ -333,18 +332,10 @@ impl HidTransport {
 		message.push(ConfigSubCommand::VendorPrototype as u8);
 		message.extend(&sub_params_bytes);
 
-		// Sign using PIN token with AuthenticatorConfiguration permission
-		use ctap_hid_fido2::fidokey::pin::Permission;
-		let pin_token = device
-			.get_pinuv_auth_token_with_permission(pin, Permission::AuthenticatorConfiguration)
-			.map_err(|e| {
-				log::error!("Failed to get PIN token with ACFG permission: {:?}", e);
-				PFError::Device(format!("PIN token acquisition failed: {:?}", e))
-			})?;
-
+		// Sign using provided PIN token
 		use ring::hmac;
-		let key = hmac::Key::new(hmac::HMAC_SHA256, &pin_token.key);
-		let sig = hmac::sign(&key, &message);
+		let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, pin_token);
+		let sig = hmac::sign(&hmac_key, &message);
 		let pin_auth = sig.as_ref()[0..16].to_vec();
 
 		// Build full authenticatorConfig map

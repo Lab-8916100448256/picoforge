@@ -351,17 +351,39 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 		PFError::Device("PIN is required for configuration".into())
 	})?;
 
-	let cfg = Cfg::init();
-	let device = FidoKeyHidFactory::create(&cfg)
-		.map_err(|e| PFError::Device(format!("Could not connect to FIDO device: {:?}", e)))?;
+	// 1. Obtain PIN token using the library handle
+	let pin_token = {
+		let cfg = Cfg::init();
+		let device = FidoKeyHidFactory::create(&cfg)
+			.map_err(|e| PFError::Device(format!("Could not connect to FIDO device: {:?}", e)))?;
 
-	// Force CID negotiation on the library handle first to avoid race conditions
-	// with our custom HidTransport initialization.
-	let _ = device.get_cid().map_err(|e| {
-		log::warn!("Failed to pre-negotiate library CID: {:?}", e);
-		PFError::Device(format!("Library CID negotiation failed: {:?}", e))
-	})?;
+		use ctap_hid_fido2::fidokey::pin::Permission;
+		// Try to obtain a token with AuthenticatorConfiguration permission (CTAP 2.1)
+		match device
+			.get_pinuv_auth_token_with_permission(pin_val, Permission::AuthenticatorConfiguration)
+		{
+			Ok(token) => {
+				log::debug!("Successfully obtained PIN token with ACFG permission.");
+				token.key
+			}
+			Err(e) => {
+				log::warn!(
+					"Failed to get PIN token with ACFG permission (Error: {:?}). Falling back to standard token.",
+					e
+				);
+				// Fallback to standard PIN token (Subcommand 0x05)
+				let token = device.get_pin_token(pin_val).map_err(|e2| {
+					log::error!("Failed to obtain even a standard PIN token: {:?}", e2);
+					PFError::Device(format!("PIN token acquisition failed: {:?}", e2))
+				})?;
+				log::debug!("Successfully obtained standard PIN token (fallback).");
+				token.key
+			}
+		}
+		// Library handle 'device' is dropped here, closing the HID session.
+	};
 
+	// 2. Open custom HidTransport and send vendor commands using the token
 	let transport = HidTransport::open().map_err(|e| {
 		log::error!("Failed to open HID transport: {}", e);
 		PFError::Device(format!("Could not open HID transport: {}", e))
@@ -373,8 +395,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 		let pid = u16::from_str_radix(pid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
 		let vidpid = ((vid as u32) << 16) | (pid as u32);
 		transport.send_vendor_config(
-			&device,
-			pin_val,
+			&pin_token,
 			VendorConfigCommand::PhysicalVidPid,
 			Value::Integer(vidpid as i128),
 		)?;
@@ -383,8 +404,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 	// LED GPIO config
 	if let Some(gpio) = config.led_gpio {
 		transport.send_vendor_config(
-			&device,
-			pin_val,
+			&pin_token,
 			VendorConfigCommand::PhysicalLedGpio,
 			Value::Integer(gpio as i128),
 		)?;
@@ -393,8 +413,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 	// LED brightness config
 	if let Some(brightness) = config.led_brightness {
 		transport.send_vendor_config(
-			&device,
-			pin_val,
+			&pin_token,
 			VendorConfigCommand::PhysicalLedBrightness,
 			Value::Integer(brightness as i128),
 		)?;
@@ -418,8 +437,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 		// However, in vendor configuration, we usually send parameters individually.
 		transport
 			.send_vendor_config(
-				&device,
-				pin_val,
+				&pin_token,
 				VendorConfigCommand::PhysicalOptions, // Assuming there's a command for it or it's in opts
 				Value::Integer(timeout as i128),      // Wait, let's check VendorConfigCommand again
 			)
@@ -427,8 +445,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 	}
 
 	transport.send_vendor_config(
-		&device,
-		pin_val,
+		&pin_token,
 		VendorConfigCommand::PhysicalOptions,
 		Value::Integer(opts as i128),
 	)?;
