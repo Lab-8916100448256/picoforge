@@ -11,7 +11,8 @@ use crate::{
 };
 use constants::*;
 use ctap_hid_fido2::{
-	Cfg, FidoKeyHidFactory, fidokey::make_credential::MakeCredentialArgs,
+	Cfg, FidoKeyHidFactory,
+	fidokey::make_credential::{MakeCredentialArgs, MakeCredentialArgsBuilder},
 	public_key_credential_descriptor::PublicKeyCredentialDescriptor,
 	public_key_credential_user_entity::PublicKeyCredentialUserEntity,
 };
@@ -441,17 +442,13 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 		Some("Pico Commissioner"),
 	);
 
-	let args = MakeCredentialArgs {
-		rpid: "Pico Keys".to_string(),
-		challenge: challenge.to_vec(),
-		pin: pin.as_deref(),
-		key_types: vec![],
-		uv: None,
-		exclude_list: vec![],
-		user_entity: Some(user),
-		rk: None,
-		extensions: None,
-	};
+	let mut builder =
+		MakeCredentialArgsBuilder::new("Pico Keys", &challenge[..]).user_entity(&user);
+
+	if let Some(pin_val) = pin.as_deref() {
+		builder = builder.pin(pin_val);
+	}
+	let args = builder.build();
 
 	device.make_credential_with_args(&args).map_err(|e| {
 		log::error!("FIDO make_credential_with_args failed: {:?}", e);
