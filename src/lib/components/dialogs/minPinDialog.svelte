@@ -6,19 +6,15 @@
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
 
   import { configViewState as configState } from "$lib/state/configState.svelte";
-  import { tick } from "svelte";
-
-  let inputRef = $state<HTMLInputElement | null>(null);
-
-  $effect(() => {
-    if (configState.minPinDialogOpen && inputRef) {
-      tick().then(() => inputRef?.focus());
-    }
-  });
 </script>
 
 <AlertDialog.Root bind:open={configState.minPinDialogOpen}>
-  <AlertDialog.Content>
+  <AlertDialog.Content
+    onOpenAutoFocus={(e) => {
+      e.preventDefault();
+      document.getElementById("min-pin-current")?.focus();
+    }}
+  >
     <AlertDialog.Header>
       <AlertDialog.Title>Update Minimum PIN Length</AlertDialog.Title>
       <AlertDialog.Description>
@@ -42,7 +38,6 @@
       <div class="space-y-2">
         <Label for="min-pin-current">Current PIN</Label>
         <Input
-          bind:ref={inputRef}
           id="min-pin-current"
           type="password"
           bind:value={configState.minPinCurrentPin}

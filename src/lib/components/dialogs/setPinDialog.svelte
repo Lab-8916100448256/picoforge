@@ -5,26 +5,16 @@
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
 
   import { configViewState as configState } from "$lib/state/configState.svelte";
-  import { tick } from "svelte";
-
-  let currentPinRef = $state<HTMLInputElement | null>(null);
-  let newPinRef = $state<HTMLInputElement | null>(null);
-
-  $effect(() => {
-    if (configState.setPinDialogOpen) {
-      tick().then(() => {
-        if (!configState.isSettingPin && currentPinRef) {
-          currentPinRef.focus();
-        } else if (configState.isSettingPin && newPinRef) {
-          newPinRef.focus();
-        }
-      });
-    }
-  });
 </script>
 
 <AlertDialog.Root bind:open={configState.setPinDialogOpen}>
-  <AlertDialog.Content>
+  <AlertDialog.Content
+    onOpenAutoFocus={(e) => {
+      e.preventDefault();
+      const id = configState.isSettingPin ? "new-pin" : "current-pin";
+      document.getElementById(id)?.focus();
+    }}
+  >
     <AlertDialog.Header>
       <AlertDialog.Title
         >{configState.isSettingPin
@@ -44,7 +34,6 @@
         <div class="space-y-2">
           <Label for="current-pin">Current PIN</Label>
           <Input
-            bind:ref={currentPinRef}
             id="current-pin"
             type="password"
             bind:value={configState.currentPin}
@@ -55,7 +44,6 @@
       <div class="space-y-2">
         <Label for="new-pin">New PIN</Label>
         <Input
-          bind:ref={newPinRef}
           id="new-pin"
           type="password"
           bind:value={configState.newPin}

@@ -4,19 +4,15 @@
     import * as AlertDialog from "$lib/components/ui/alert-dialog";
 
     import { configViewState as configState } from "$lib/state/configState.svelte";
-    import { tick } from "svelte";
-
-    let inputRef = $state<HTMLInputElement | null>(null);
-
-    $effect(() => {
-        if (configState.authPinDialogOpen && inputRef) {
-            tick().then(() => inputRef?.focus());
-        }
-    });
 </script>
 
 <AlertDialog.Root bind:open={configState.authPinDialogOpen}>
-    <AlertDialog.Content>
+    <AlertDialog.Content
+        onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            document.getElementById("auth-pin")?.focus();
+        }}
+    >
         <AlertDialog.Header>
             <AlertDialog.Title>Authentication Required</AlertDialog.Title>
             <AlertDialog.Description>
@@ -28,7 +24,6 @@
             <div class="space-y-2">
                 <Label for="auth-pin">FIDO2 PIN</Label>
                 <Input
-                    bind:ref={inputRef}
                     id="auth-pin"
                     type="password"
                     bind:value={configState.authPin}
