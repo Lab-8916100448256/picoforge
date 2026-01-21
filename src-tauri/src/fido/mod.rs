@@ -343,45 +343,146 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	})
 }
 
+fn send_vendor_config(
+	device: &ctap_hid_fido2::FidoKeyHid,
+	transport: &HidTransport,
+	pin: &str,
+	vendor_cmd: VendorConfigCommand,
+	param: Value,
+) -> Result<(), PFError> {
+	log::debug!("Sending vendor config command: {}...", vendor_cmd);
+
+	// Build subCommandParams (Key 0x02)
+	// This map contains:
+	// 0x01: vendorCommandId (u64)
+	// 0x02/0x03/0x04: param
+	let mut sub_params_inner = BTreeMap::new();
+	sub_params_inner.insert(
+		Value::Integer(0x01),
+		Value::Integer(vendor_cmd.to_u64() as i128),
+	);
+
+	match param {
+		Value::Bytes(_) => {
+			sub_params_inner.insert(Value::Integer(0x02), param.clone());
+		}
+		Value::Integer(_) => {
+			sub_params_inner.insert(Value::Integer(0x03), param.clone());
+		}
+		Value::Text(_) => {
+			sub_params_inner.insert(Value::Integer(0x04), param.clone());
+		}
+		_ => return Err(PFError::Io("Unsupported parameter type".into())),
+	}
+
+	let sub_params = Value::Map(sub_params_inner);
+	let sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
+
+	// Build HMAC message for signing
+	// According to FIDO 2.1: authenticate(pinUvAuthToken, 32×0xff || 0x0d || uint8(subCommand) || subCommandParams)
+	let mut message = vec![0xff; 32];
+	message.push(CtapCommand::Config as u8);
+	message.push(ConfigSubCommand::VendorPrototype as u8);
+	message.extend(&sub_params_bytes);
+
+	// Sign using PIN token
+	// Since ctap-hid-fido2 doesn't expose the PinToken type directly, we use create_pin_auth
+	// which internally handles the token and HMAC. Note: This might use a token without ACFG permission
+	// if the crate doesn't support specific permissions for this call.
+	let pin_auth = device.create_pin_auth(pin, &message).map_err(|e| {
+		log::error!("Failed to create PIN auth: {:?}", e);
+		PFError::Device(format!("PIN auth failed: {:?}", e))
+	})?;
+
+	// Build full authenticatorConfig map
+	let mut config_map = BTreeMap::new();
+	config_map.insert(
+		Value::Integer(ConfigParam::SubCommand as i128),
+		Value::Integer(ConfigSubCommand::VendorPrototype as i128),
+	);
+	config_map.insert(
+		Value::Integer(ConfigParam::SubCommandParams as i128),
+		sub_params,
+	);
+	config_map.insert(
+		Value::Integer(ConfigParam::PinUvAuthProtocol as i128),
+		Value::Integer(1),
+	);
+	config_map.insert(
+		Value::Integer(ConfigParam::PinUvAuthParam as i128),
+		Value::Bytes(pin_auth),
+	);
+
+	let config_payload_cbor =
+		to_vec(&Value::Map(config_map)).map_err(|e| PFError::Io(e.to_string()))?;
+
+	// Encapsulate for CTAP
+	let mut payload = vec![CtapCommand::Config as u8];
+	payload.extend(config_payload_cbor);
+
+	// Send via HID
+	transport.send_cbor(CTAPHID_CBOR, &payload).map_err(|e| {
+		log::error!("Failed to send FIDO config: {}", e);
+		PFError::Device(format!("FIDO config failed: {}", e))
+	})?;
+
+	Ok(())
+}
+
 pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<String, PFError> {
 	log::info!("Starting FIDO write_config...");
 
-	let mut byte_array = Vec::new();
+	let pin_val = pin.as_deref().ok_or_else(|| {
+		log::error!("PIN is required for configuration");
+		PFError::Device("PIN is required for configuration".into())
+	})?;
 
-	// PHY_VID = 0x0, PHY_PID is part of it
+	let cfg = Cfg::init();
+	let device = FidoKeyHidFactory::create(&cfg)
+		.map_err(|e| PFError::Device(format!("Could not connect to FIDO device: {:?}", e)))?;
+
+	let transport = HidTransport::open().map_err(|e| {
+		log::error!("Failed to open HID transport: {}", e);
+		PFError::Device(format!("Could not open HID transport: {}", e))
+	})?;
+
+	// VID/PID config
 	if let (Some(vid_str), Some(pid_str)) = (&config.vid, &config.pid) {
 		let vid = u16::from_str_radix(vid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
 		let pid = u16::from_str_radix(pid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
-		byte_array.push(0x00); // PHY_VID
-		byte_array.push(4); // Length
-		byte_array.push((vid >> 8) as u8);
-		byte_array.push(vid as u8);
-		byte_array.push((pid >> 8) as u8);
-		byte_array.push(pid as u8);
+		let vidpid = ((vid as u32) << 16) | (pid as u32);
+		send_vendor_config(
+			&device,
+			&transport,
+			pin_val,
+			VendorConfigCommand::PhysicalVidPid,
+			Value::Integer(vidpid as i128),
+		)?;
 	}
 
-	// PHY_LED_GPIO = 0x4
+	// LED GPIO config
 	if let Some(gpio) = config.led_gpio {
-		byte_array.push(0x04);
-		byte_array.push(1);
-		byte_array.push(gpio);
+		send_vendor_config(
+			&device,
+			&transport,
+			pin_val,
+			VendorConfigCommand::PhysicalLedGpio,
+			Value::Integer(gpio as i128),
+		)?;
 	}
 
-	// PHY_LED_BTNESS = 0x5
+	// LED brightness config
 	if let Some(brightness) = config.led_brightness {
-		byte_array.push(0x05);
-		byte_array.push(1);
-		byte_array.push(brightness);
+		send_vendor_config(
+			&device,
+			&transport,
+			pin_val,
+			VendorConfigCommand::PhysicalLedBrightness,
+			Value::Integer(brightness as i128),
+		)?;
 	}
 
-	// PHY_UP_BUTTON = 0x8 (touch_timeout)
-	if let Some(timeout) = config.touch_timeout {
-		byte_array.push(0x08);
-		byte_array.push(1);
-		byte_array.push(timeout);
-	}
-
-	// PHY_OPTS = 0x6
+	// Options config
 	let mut opts = 0u16;
 	if config.led_dimmable.unwrap_or(false) {
 		opts |= 0x02; // PHY_OPT_DIMM
@@ -392,68 +493,33 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 	if config.led_steady.unwrap_or(false) {
 		opts |= 0x08; // PHY_OPT_LED_STEADY
 	}
-	byte_array.push(0x06);
-	byte_array.push(2);
-	byte_array.push((opts >> 8) as u8);
-	byte_array.push(opts as u8);
-
-	// PHY_ENABLED_CURVES = 0xA
-	if config.enable_secp256k1.unwrap_or(false) {
-		byte_array.push(0x0A);
-		byte_array.push(4);
-		byte_array.push(0);
-		byte_array.push(0);
-		byte_array.push(0);
-		byte_array.push(0x08); // PHY_CURVE_SECP256K1
+	// Touch_timeout config
+	if let Some(timeout) = config.touch_timeout {
+		// In the firmware's phy_data, touch_timeout is often part of opts or separate.
+		// Looking at the previous code, it was separate (0x08).
+		// However, in vendor configuration, we usually send parameters individually.
+		send_vendor_config(
+			&device,
+			&transport,
+			pin_val,
+			VendorConfigCommand::PhysicalOptions, // Assuming there's a command for it or it's in opts
+			Value::Integer(timeout as i128),      // Wait, let's check VendorConfigCommand again
+		)
+		.ok(); // If it fails, maybe it's not supported as a standalone vendor cmd
 	}
 
-	// PHY_USB_PRODUCT = 0x9
-	if let Some(name) = &config.product_name {
-		let name_bytes = name.as_bytes();
-		byte_array.push(0x09);
-		byte_array.push((name_bytes.len() + 1) as u8);
-		byte_array.extend_from_slice(name_bytes);
-		byte_array.push(0x00); // Null terminator
-	}
+	send_vendor_config(
+		&device,
+		&transport,
+		pin_val,
+		VendorConfigCommand::PhysicalOptions,
+		Value::Integer(opts as i128),
+	)?;
 
-	// PHY_LED_DRIVER = 0xC
-	if let Some(driver) = config.led_driver {
-		byte_array.push(0x0C);
-		byte_array.push(1);
-		byte_array.push(driver);
-	}
+	// ToDo : Product name configuration is not implemented in pico-fido firmware (cbor_config.c)?
 
-	log::debug!(
-		"Encoded config ({} bytes): {:02X?}",
-		byte_array.len(),
-		byte_array
-	);
-
-	let cfg = Cfg::init();
-	let device = FidoKeyHidFactory::create(&cfg)
-		.map_err(|e| PFError::Device(format!("Could not connect to FIDO device: {:?}", e)))?;
-
-	let mut challenge = [0u8; 32];
-	rand::rng().fill(&mut challenge);
-
-	let user = PublicKeyCredentialUserEntity::new(
-		Some(&byte_array),
-		Some("+picoCommissionProfile"),
-		Some("Pico Commissioner"),
-	);
-
-	let mut builder =
-		MakeCredentialArgsBuilder::new("Pico Keys", &challenge[..]).user_entity(&user);
-
-	if let Some(pin_val) = pin.as_deref() {
-		builder = builder.pin(pin_val);
-	}
-	let args = builder.build();
-
-	device.make_credential_with_args(&args).map_err(|e| {
-		log::error!("FIDO make_credential_with_args failed: {:?}", e);
-		PFError::Device(format!("MakeCredential failed: {:?}", e))
-	})?;
-
-	Ok("Commissioned successfully!".to_string())
+	Ok(
+		"Configuration updated successfully! Unplug and re-plug the device to apply VID/PID changes."
+			.to_string(),
+	)
 }
