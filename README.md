@@ -144,33 +144,36 @@ The compiled binaries will be available in:
 - **macOS**: `src-tauri/target/release/bundle/dmg/`
 - **Windows**: `src-tauri/target/release/bundle/`
 
-## Building with Nix
+## Building and Development with Nix
 
-[Nix](https://nixos.org/) is a powerful package manager that provides clean, reproducible builds. You can use Nix to build picoforge painlessly.
+[Nix](https://nixos.org/) provides developers with a complete and consistent development environment.
+
+You can use Nix to build and develop picoforge painlessly.
 
 ### 1. Install Nix
 
-Follow the [official installation guide](https://nixos.org/download/#download-nix).
+Follow the [Installation Guide](https://nixos.org/download/#download-nix) and [NixOS Wiki](https://wiki.nixos.org/wiki/Flakes#Setup) to install Nix and enable Flakes.
 
-### 2. Download the package definition
+### 2. Build & Run
 
-```bash
-curl -O https://raw.githubusercontent.com/librekeys/picoforge/main/package.nix
-```
-
-### 3. Build the project
-
-Run the following command in the directory containing `package.nix`:
+You can build and run PicoForge with a single command:
 
 ```bash
-nix-build -E 'with import <nixpkgs> {}; callPackage ./package.nix { }'
+nix run github:librekeys/picoforge
 ```
 
-The compiled binary will be available at: `result/bin/picoforge`
+Or simply build it and link to the current directory:
 
-### 4. Nix-shell developement environment
-Alternatively, you can use the shell.nix file that is at the root of the repository to enter a developement environement with all the required dependencies by simply running `nix-shell`
-Then you can build from source and run the application with `deno task tauri dev`.
+```bash
+nix build github:librekeys/picoforge
+```
+
+### 3. Develop
+Alternatively, you can enter a developement environement with all the required dependencies by running:
+
+```bash
+nix develop github:librekeys/picoforge
+```
 
 ## Project Structure
 
