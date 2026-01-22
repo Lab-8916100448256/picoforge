@@ -11,7 +11,7 @@ There are several ways to work around this issue
 
 ### 1. Flash a firmware that you build from source with USB VID/PID known by pcsc-lite
 Legaly speaking, we cannot distribute the pico-fido firmware with USB VID and PID that we do not own. And it is quite expensive to register a USB vendorID. 
-This is why the pico-difo firmware is distributed with the so-called "generic" VID/PID
+This is why the pico-fido firmware is distributed with the so-called "generic" VID/PID
 But if you build a firmware from the source code for your own use you can choose to build it with known VID/PID that will be recognized by pcsc-lite. 
 Refer to the the pico-fido firmware documentation for how to do that.
 
